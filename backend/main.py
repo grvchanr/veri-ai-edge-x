@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile
+import cv2
 from backend.video_detector import detect_deepfake_video
 from backend.text_detector import detect_deepfake_text
 from backend.fusion_engine import fusion_engine
