@@ -8,6 +8,24 @@ from backend.preprocess import preprocess_video, preprocess_text
 
 app = FastAPI()
 
+def extract_frames(video_path):
+    # Placeholder frame extraction logic
+    frames = []
+    cap = cv2.VideoCapture(video_path)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        frames.append(frame)
+    cap.release()
+    return frames
+
+def extract_text(text_path):
+    # Placeholder text extraction logic
+    with open(text_path, "r") as f:
+        text = f.read()
+    return text
+
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     temp_path = preprocess_video(file)
