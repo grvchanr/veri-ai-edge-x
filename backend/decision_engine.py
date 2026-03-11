@@ -1,8 +1,12 @@
-def decision_engine(fusion_result):
-    # Placeholder decision logic
-    if fusion_result > 0.7:
-        return "TRUST"
-    elif fusion_result > 0.3:
-        return "CAUTION"
+def decision_engine(confidence_score):
+    if confidence_score > 0.9:
+        decision = "TRUST"
+    elif 0.7 <= confidence_score <= 0.9:
+        decision = "CAUTION"
     else:
-        return "REJECT"
+        decision = "REJECT"
+
+    return {
+        "decision": decision,
+        "confidence": confidence_score
+    }
