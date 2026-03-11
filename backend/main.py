@@ -1,56 +1,131 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 import cv2
-from backend.video_detector import detect_deepfake_video
-from backend.text_detector import detect_deepfake_text
-from backend.fusion_engine import fusion_engine
-from backend.decision_engine import decision_engine
+import numpy as np
+import logging
+import os
+import time
+from typing import Dict, Any
+
+from backend.video_detector import VideoDeepfakeDetector
+from backend.text_detector import TextPhishingDetector
+from backend.fusion_engine import FusionEngine
+from backend.preprocess import VideoProcessor, TextProcessor, preprocess_video, preprocess_text
+from backend.decision_engine import DecisionAgent
 from backend.explainability import explainability
-from backend.preprocess import preprocess_video, preprocess_text
 
-app = FastAPI()
+logger = logging.getLogger(__name__)
 
-def extract_frames(video_path):
-    # Placeholder frame extraction logic
-    frames = []
-    cap = cv2.VideoCapture(video_path)
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frames.append(frame)
-    cap.release()
-    return frames
+app = FastAPI(title="VERI-AI EDGE", version="0.1")
 
-def extract_text(text_path):
-    # Placeholder text extraction logic
-    with open(text_path, "r") as f:
-        text = f.read()
-    return text
+# Global components
+video_detector = VideoDeepfakeDetector()
+text_detector = TextPhishingDetector()
+fusion_engine = FusionEngine()
+decision_agent = DecisionAgent()
+video_processor = VideoProcessor()
+text_processor = TextProcessor()
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("Initializing models...")
+    if not video_detector.initialize(device='auto', num_threads=4):
+        logger.error("Failed to initialize video detector")
+    if not text_detector.initialize(device='auto', num_threads=4):
+        logger.error("Failed to initialize text detector")
+    video_detector.warmup()
+    text_detector.warmup()
+    logger.info("Models initialized and warmed up")
 
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
-    temp_path = preprocess_video(file)
-    frames = extract_frames(temp_path)
-    score = detect_deepfake_video(frames)
-    fusion_result = fusion_engine(score)
-    decision = decision_engine(fusion_result)
-    explanation = explainability(fusion_result)
-    return {
-        "confidence": fusion_result,
-        "decision": decision,
-        "reason": explanation
-    }
+    try:
+        # Save uploaded file
+        temp_path = preprocess_video(file)
+        # Preprocess video
+        frames = video_processor.process(temp_path)
+        # Detect
+        video_score = video_detector.predict(frames)
+        # Fuse
+        fusion_result = fusion_engine.weighted_average({'video': video_score})
+        # Decision
+        decision = decision_agent.decide(
+            fusion_result.final_score,
+            {'video': video_score},
+            fusion_result.confidence
+        )
+        # Explainability
+        explanation = explainability(
+            fusion_result.final_score, 
+            data_type='video', 
+            data=frames
+        )
+        # Cleanup
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+        return {
+            "confidence": fusion_result.final_score,
+            "decision": decision.to_dict(),
+            "reason": explanation.get('text_explanation', "No explanation available"),
+            "details": {
+                "video_score": video_score,
+                "fusion_method": fusion_result.method,
+                "fusion_confidence": fusion_result.confidence,
+                "explanation": explanation
+            }
+        }
+    except Exception as e:
+        logger.error(f"Video analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze/text")
 async def analyze_text(file: UploadFile = File(...)):
-    temp_path = preprocess_text(file)
-    text = extract_text(temp_path)
-    score = detect_deepfake_text(text)
-    fusion_result = fusion_engine(score)
-    decision = decision_engine(fusion_result)
-    explanation = explainability(fusion_result)
+    try:
+        temp_path = preprocess_text(file)
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            text = f.read()
+        # Tokenize
+        token_ids = text_processor.process(text)
+        # Detect
+        text_score = text_detector.predict(token_ids)
+        # Fuse
+        fusion_result = fusion_engine.weighted_average({'text': text_score})
+        # Decision
+        decision = decision_agent.decide(
+            fusion_result.final_score,
+            {'text': text_score},
+            fusion_result.confidence
+        )
+        # Explainability
+        explanation = explainability(
+            fusion_result.final_score,
+            data_type='text',
+            data=token_ids
+        )
+        # Cleanup
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+        return {
+            "confidence": fusion_result.final_score,
+            "decision": decision.to_dict(),
+            "reason": explanation.get('text_explanation', "No explanation available"),
+            "details": {
+                "text_score": text_score,
+                "fusion_method": fusion_result.method,
+                "fusion_confidence": fusion_result.confidence,
+                "explanation": explanation
+            }
+        }
+    except Exception as e:
+        logger.error(f"Text analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health():
     return {
-        "confidence": fusion_result,
-        "decision": decision,
-        "reason": explanation
+        "status": "ok", 
+        "models_loaded": video_detector.initialized and text_detector.initialized
     }
