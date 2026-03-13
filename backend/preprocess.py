@@ -21,3 +21,9 @@ def read_text(file_path):
         text = file.read().replace('\n', '')
         text = re.sub(r'\s+', ' ', text).strip()
         return text
+
+def preprocess_video(file):
+    return extract_frames(file)
+
+def preprocess_text(file):
+    return read_text(file)
