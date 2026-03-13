@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 from backend.video_detector import VideoDeepfakeDetector
 from backend.text_detector import detect_phishing, detect_deepfake_text
@@ -14,18 +14,21 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Initialize detectors and other components
+# Initialize detectors
 video_detector = VideoDeepfakeDetector()
+
 
 @app.on_event("startup")
 async def startup_event():
-    # Any startup tasks can go here, like loading models
-    pass
+    logger.info("Application startup complete.")
+
 
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     try:
         logger.info("Video received")
+
+        # Save uploaded video to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
             contents = await file.read()
             temp_file.write(contents)
@@ -33,53 +36,76 @@ async def analyze_video(file: UploadFile = File(...)):
 
         logger.info("Saving upload")
 
+        # Run video detector
         result = video_detector.detect(video_path)
-        video_score = result["video_score"]
+
+        video_score = result.get("video_score", 0.0)
         reason = result.get("reason", "Analysis complete")
         frames_analyzed = result.get("frames_analyzed", 0)
 
         logger.info("Running face detection")
 
-        fused_score = fusion_engine(video_score, 0.0)       # Assuming text score is 0 for video-only analysis
+        # Fusion (video only in this endpoint)
+        fused_score = fusion_engine(video_score, 0.0)
+
         logger.info("Scoring frames")
 
+        # Decision engine
         decision = decision_engine(fused_score)
-        explanation = explainability(fused<｜begin▁of▁sentence｜>_score, data_type='video', data=video_path)
 
-        os.remove(video_path)       # Clean up the temporary file
+        # Explainability
+        explanation = explainability(
+            fused_score,
+            data_type="video",
+            data=video_path
+        )
+
+        # Cleanup temp file
+        os.remove(video_path)
+
         logger.info("Returning result")
 
         return JSONResponse(content={
             "confidence": fused_score,
-            "decision": decision.to_dict(), 
+            "decision": decision.to_dict(),
             "reason": reason,
             "frames_analyzed": frames_analyzed,
-            "processing_steps": explanation["processing_steps"]
+            "processing_steps": explanation.get("processing_steps", [])
         })
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+
 @app.post("/analyze/text")
 async def analyze_text(file: UploadFile = File(...)):
     try:
         text = (await file.read()).decode("utf-8")
+
         phishing_score = detect_phishing(text)
         deepfake_score = detect_deepfake_text(text)
-        fused_score = fusion_engine(0.0, deepfake_score)       # Assuming video score is 0 for text-only analysis
+
+        fused_score = fusion_engine(0.0, deepfake_score)
+
         decision = decision_engine(fused_score)
-        explanation = explainability(fused_score, data_type='text', data=text)
+
+        explanation = explainability(
+            fused_score,
+            data_type="text",
+            data=text
+        )
 
         return JSONResponse(content={
             "confidence": fused_score,
-            "decision": decision.to_dict(), 
-            "reason": explanation["reason"],
-            "processing_steps": explanation["processing_steps"]
+            "decision": decision.to_dict(),
+            "reason": explanation.get("reason", "Text analysis complete"),
+            "processing_steps": explanation.get("processing_steps", [])
         })
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
 
 @app.get("/health")
 async def health():
