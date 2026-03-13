@@ -1,29 +1,49 @@
 import { useState } from 'react';
-import { 
-  Header, 
-  UploadPanel, 
-  ProcessingTimeline, 
-  ResultsDashboard, 
-  SystemStatus 
+import {
+  Header,
+  UploadPanel,
+  ProcessingTimeline,
+  ResultsDashboard,
+  SystemStatus,
 } from '@/components/dashboard';
 import { AnalysisResult } from '@/lib/api';
 
 export default function Dashboard() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [timelineEvents, setTimelineEvents] = useState([
-    { id: '1', label: 'File Upload', status: 'pending' as const },
-    { id: '2', label: 'Preprocessing', status: 'pending' as const },
-    { id: '3', label: 'AI Analysis', status: 'pending' as const },
-    { id: '4', label: 'Result Generation', status: 'pending' as const },
+    { id: '1', label: 'Extracting frames', status: 'pending' as const },
+    { id: '2', label: 'Detecting faces', status: 'pending' as const },
+    { id: '3', label: 'Artifact analysis', status: 'pending' as const },
+    { id: '4', label: 'Aggregating results', status: 'pending' as const },
   ]);
 
   const handleAnalysisComplete = (analysisResult: AnalysisResult) => {
-    // Simulate timeline progression
+    // Simulate sequential progression – each step becomes "complete"
     setTimelineEvents([
-      { id: '1', label: 'File Upload', status: 'complete', timestamp: new Date().toLocaleTimeString() },
-      { id: '2', label: 'Preprocessing', status: 'complete', timestamp: new Date().toLocaleTimeString() },
-      { id: '3', label: 'AI Analysis', status: 'complete', timestamp: new Date().toLocaleTimeString() },
-      { id: '4', label: 'Result Generation', status: 'complete', timestamp: new Date().toLocaleTimeString() },
+      {
+        id: '1',
+        label: 'Extracting frames',
+        status: 'complete',
+        timestamp: new Date().toLocaleTimeString(),
+      },
+      {
+        id: '2',
+        label: 'Detecting faces',
+        status: 'complete',
+        timestamp: new Date().toLocaleTimeString(),
+      },
+      {
+        id: '3',
+        label: 'Artifact analysis',
+        status: 'complete',
+        timestamp: new Date().toLocaleTimeString(),
+      },
+      {
+        id: '4',
+        label: 'Aggregating results',
+        status: 'complete',
+        timestamp: new Date().toLocaleTimeString(),
+      },
     ]);
     setResult(analysisResult);
   };
