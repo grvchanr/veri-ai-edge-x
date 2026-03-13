@@ -1,6 +1,9 @@
 import numpy as np
 import mediapipe as mp
 import cv2
+import logging
+
+logger = logging.getLogger(__name__)
 
 class VideoDeepfakeDetector:
 
@@ -14,10 +17,11 @@ class VideoDeepfakeDetector:
         return results.detections
 
     def detect(self, video_path):
+        logger.info(f"Detecting deepfakes in video: {video_path}")
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            print("Error opening video file")
-            return 0.2  
+            logger.error(f"Error opening video file: {video_path}")
+            raise IOError(f"Could not open video file: {video_path}")
 
         frames = []
         while True:
@@ -39,4 +43,5 @@ class VideoDeepfakeDetector:
         else:
             score = 0.2   
 
+        logger.info(f"Deepfake detection score: {score}")
         return score

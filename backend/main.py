@@ -7,6 +7,10 @@ from backend.decision_engine import decision_engine
 from backend.explainability import explainability
 import os
 import tempfile
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -21,17 +25,25 @@ async def startup_event():
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     try:
+        logger.info("Video received")
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
             contents = await file.read()
             temp_file.write(contents)
             video_path = temp_file.name
 
+        logger.info("Saving upload")
+
         video_score = video_detector.detect(video_path)
+        logger.info("Running face detection")
+
         fused_score = fusion_engine(video_score, 0.0)     # Assuming text score is 0 for video-only analysis
+        logger.info("Scoring frames")
+
         decision = decision_engine(fused_score)
         explanation = explainability(fused_score, data_type='video', data=video_path)
 
         os.remove(video_path)     # Clean up the temporary file
+        logger.info("Returning result")
 
         return JSONResponse(content={
             "confidence": fused_score,
@@ -42,6 +54,7 @@ async def analyze_video(file: UploadFile = File(...)):
         })
 
     except Exception as e:
+        logger.error(f"An error occurred: {e}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post("/analyze/text")
