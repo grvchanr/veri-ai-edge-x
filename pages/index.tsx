@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Header, UploadPanel } from '@/components/dashboard';
 import { AnalysisResult } from '@/lib/api';
+import UploadToast from '@/components/dashboard/UploadToast';
 
 // Lazy‑load heavy components to reduce initial bundle size
 const ProcessingTimeline = dynamic(
@@ -25,6 +26,7 @@ export default function Dashboard() {
     { id: '3', label: 'Artifact analysis', status: 'pending' as const },
     { id: '4', label: 'Aggregating results', status: 'pending' as const },
   ]);
+  const [showToast, setShowToast] = useState(false);
 
   const handleAnalysisComplete = useCallback((analysisResult: AnalysisResult) => {
     // Simulate sequential progression – each step becomes "complete"
@@ -36,6 +38,7 @@ export default function Dashboard() {
       { id: '4', label: 'Aggregating results', status: 'complete', timestamp: now },
     ]);
     setResult(analysisResult);
+    setShowToast(true); // trigger upload‑complete feedback
   }, []);
 
   return (
@@ -76,6 +79,9 @@ export default function Dashboard() {
           </div>
         </footer>
       </div>
+
+      {/* Upload completion toast */}
+      <UploadToast show={showToast} onClose={() => setShowToast(false)} />
     </div>
   );
 }

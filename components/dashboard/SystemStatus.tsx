@@ -55,10 +55,14 @@ const SystemStatus: React.FC = () => {
     </div>
   );
 
+  // Border color based on health status
+  const borderClass =
+    health?.status === 'ok' ? 'border-cyber-success' : 'border-cyber-danger';
+
   return (
     <div
       className={`
-        glass rounded-lg border border-cyber-border p-4
+        glass rounded-lg ${borderClass} border-2 p-4
         transition transform hover:scale-[1.02]
         hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
       `}

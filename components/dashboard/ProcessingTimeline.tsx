@@ -95,13 +95,16 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
   const progressPercent = Math.round((completedCount / events.length) * 100);
 
   return (
-    <div
+    <motion.div
       className={`
         glass rounded-lg border border-cyber-border
         transition transform hover:scale-[1.02]
         hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
         ${className}
       `}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
     >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">
@@ -195,7 +198,7 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
           </motion.div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 };
 

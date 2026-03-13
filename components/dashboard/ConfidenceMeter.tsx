@@ -30,15 +30,21 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamped / 100);
 
-  const controls = useAnimation();
+  const strokeControls = useAnimation();
+  const scaleControls = useAnimation();
 
   // Animate the stroke offset whenever confidence changes
   useEffect(() => {
-    controls.start({
+    strokeControls.start({
       strokeDashoffset: offset,
       transition: { duration: 0.6, ease: 'easeOut' },
     });
-  }, [offset, controls]);
+    // Subtle pulse on update
+    scaleControls.start({
+      scale: [1, 1.08, 1],
+      transition: { duration: 0.6, ease: 'easeOut' },
+    });
+  }, [offset, strokeControls, scaleControls]);
 
   return (
     <div className="flex items-center justify-center relative">
@@ -48,7 +54,7 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
         viewBox={`0 0 ${size} ${size}`}
         className="transform -rotate-90"
         initial={{ scale: 0.9 }}
-        animate={{ scale: 1 }}
+        animate={scaleControls}
         transition={{ duration: 0.3, ease: 'easeOut' }}
       >
         {/* Background track */}
@@ -73,7 +79,7 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference}
-          animate={controls}
+          animate={strokeControls}
         />
       </motion.svg>
 
