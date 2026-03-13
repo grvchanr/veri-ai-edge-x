@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class VideoDeepfakeDetector:
 
-    def __init__(self):
+    def  __init__(self):
         self.mp_face_detection = mp.solutions.face_detection
         self.face_detector = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
 
@@ -43,5 +43,11 @@ class VideoDeepfakeDetector:
         else:
             score = 0.2   
 
+        frames_analyzed = len(frames)
+
         logger.info(f"Deepfake detection score: {score}")
-        return {"video_score": score, "reason": "Artifact analysis complete"}
+        return {
+            "video_score": float(score),
+            "reason": "Facial artifact analysis complete",
+            "frames_analyzed": frames_analyzed
+        }
