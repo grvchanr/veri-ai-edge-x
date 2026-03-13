@@ -17,7 +17,7 @@ app = FastAPI(title="VERI-AI EDGE", version="0.1")
 # Initialize global components
 video_detector = VideoDeepfakeDetector()
 text_detector = TextPhishingDetector()
-fusion_engine = fusion_engine(video_score, text_score)
+fusion_engine = fusion_engine()
 decision_agent = DecisionAgent()
 video_processor = VideoProcessor()
 text_processor = TextProcessor()
@@ -31,6 +31,7 @@ async def startup_event():
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     try:
+        
         # Save uploaded file
         temp_path = preprocess_video(file)
 
@@ -41,7 +42,7 @@ async def analyze_video(file: UploadFile = File(...)):
         result = video_detector.detect(temp_path)
         video_score = result["video_score"]
 
-        # Fuse scores (only video for now)
+        # Fuse scores 
         fusion_result = fusion_engine.weighted_average({"video": video_score})
 
         # Decision
@@ -56,19 +57,20 @@ async def analyze_video(file: UploadFile = File(...)):
             fusion_result.final_score,
             data_type="video",
             data=frames
-        )
-
+        
         # Cleanup
         try:
             os.unlink(temp_path)
         except Exception:
             pass
 
-        return {
+        return 
+        {
             "confidence": fusion_result.final_score,
             "decision": decision.to_dict(),
             "reason": explanation.get("text_explanation", "No explanation available"),
-            "details": {
+            "details": 
+            {
                 "video_score": video_score,
                 "explanation": explanation
             }
@@ -80,58 +82,4 @@ async def analyze_video(file: UploadFile = File(...)):
 
 
 @app.post("/analyze/text")
-async def analyze_text(file: UploadFile = File(...)):
-    try:
-        temp_path = preprocess_text(file)
-
-        with open(temp_path, "r", encoding="utf-8") as f:
-            text = f.read()
-
-        # Process text
-        tokens = text_processor.process(text)
-
-        # Detect phishing
-        result = text_detector.detect(tokens)
-        text_score = result["text_score"]
-
-        # Fuse scores
-        fusion_result = fusion_engine.weighted_average({"text": text_score})
-
-        # Decision
-        decision = decision_agent.decide(
-            fusion_result.final_score,
-            {"text": text_score},
-            fusion_result.confidence
-        )
-
-        # Explainability
-        explanation = explainability(
-            fusion_result.final_score,
-            data_type="text",
-            data=tokens
-        )
-
-        # Cleanup
-        try:
-            os.unlink(temp_path)
-        except Exception:
-            pass
-
-        return {
-            "confidence": fusion_result.final_score,
-            "decision": decision.to_dict(),
-            "reason": explanation.get("text_explanation", "No explanation available"),
-            "details": {
-                "text_score": text_score,
-                "explanation": explanation
-            }
-        }
-
-    except Exception as e:
-        logger.error(f"Text analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+async def analyze_text(file: UploadFile
