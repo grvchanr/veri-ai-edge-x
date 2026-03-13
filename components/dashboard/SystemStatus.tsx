@@ -1,122 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { healthApi, HealthResponse } from '@/lib/api';
+import React, { useEffect, useState } from 'react';
 
-interface SystemStatusProps {
-  className?: string;
+interface HealthResponse {
+  /** Overall API health – typically "ok" or "error". */
+  status: string;
+  /** Edge mode flag returned by the backend (e.g., "on" | "off"). */
+  edgeMode: string;
+  /** Device used for inference (e.g., "raspberry-pi", "cpu", "gpu"). */
+  inferenceDevice: string;
+  /** Measured latency in milliseconds. */
+  latency: number;
 }
 
-const SystemStatus: React.FC<SystemStatusProps> = ({ className = '' }) => {
+/**
+ * SystemStatus
+ *
+ * - Polls the backend `/health` endpoint every 5 seconds.
+ * - Displays API health, edge‑mode flag, inference device, and latency.
+ * - Uses a lightweight fetch + `setInterval` approach (no external polling libs).
+ * - UI mirrors the style of other dashboard cards (glass, border, Tailwind).
+ *
+ * The component is deliberately simple to keep CPU usage low on edge devices
+ * such as a Raspberry Pi.
+ */
+const SystemStatus: React.FC = () => {
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const checkHealth = async () => {
-    setLoading(true);
-    setError(null);
+  const fetchHealth = async () => {
     try {
-      const response = await healthApi.check();
-      setHealth(response);
+      const res = await fetch('/health');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: HealthResponse = await res.json();
+      setHealth(data);
+      setError(null);
     } catch (err) {
-      setError('Failed to connect to backend');
+      console.error('Health check failed:', err);
+      setError('Unable to reach backend');
       setHealth(null);
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Initial fetch + polling every 5 seconds
   useEffect(() => {
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000); // Check every 30 seconds
-    return () => clearInterval(interval);
+    fetchHealth();
+    const intervalId = setInterval(fetchHealth, 5000);
+    return () => clearInterval(intervalId);
   }, []);
 
-  const systemMetrics = [
-    { label: 'Backend API', status: health ? 'online' : 'offline', color: health ? 'text-cyber-success' : 'text-cyber-danger' },
-    { label: 'Inference Engine', status: 'ready', color: 'text-cyber-success' },
-    { label: 'Model Status', status: 'loaded', color: 'text-cyber-success' },
-    { label: 'CPU Usage', status: '12%', color: 'text-cyber-muted' },
-    { label: 'Memory', status: '256MB', color: 'text-cyber-muted' },
-  ];
+  // Helper to render a label/value pair
+  const renderItem = (label: string, value: React.ReactNode) => (
+    <div className="flex justify-between py-1">
+      <span className="text-sm text-cyber-muted">{label}</span>
+      <span className="text-sm font-medium text-cyber-text">{value}</span>
+    </div>
+  );
 
   return (
-    <div className={`glass rounded-lg border border-cyber-border ${className}`}>
-      <div className="p-4 border-b border-cyber-border flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2">
-          <svg className="w-4 h-4 text-cyber-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-          </svg>
-          System Status
-        </h2>
-        <button 
-          onClick={checkHealth}
-          disabled={loading}
-          className="text-xs text-cyber-muted hover:text-cyber-accent transition-colors disabled:opacity-50"
+    <div className="glass rounded-lg border border-cyber-border p-4">
+      {/* Header */}
+      <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2 mb-2">
+        <svg
+          className="w-4 h-4 text-cyber-accent"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
         >
-          {loading ? 'CHECKING...' : 'REFRESH'}
-        </button>
-      </div>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2z"
+          />
+        </svg>
+        System Status
+      </h2>
 
-      <div className="p-4 space-y-3">
-        {/* Connection Status */}
-        <div className={`p-3 rounded-lg border ${
-          health 
-            ? 'bg-cyber-success/5 border-cyber-success/30' 
-            : 'bg-cyber-danger/5 border-cyber-danger/30'
-        }`}>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${health ? 'bg-cyber-success animate-pulse' : 'bg-cyber-danger'}`}></div>
-            <span className={`text-sm font-medium ${health ? 'text-cyber-success' : 'text-cyber-danger'}`}>
-              {health ? 'Backend Connected' : 'Backend Offline'}
-            </span>
-          </div>
-          {health?.timestamp && (
-            <p className="text-xs text-cyber-muted mt-1 ml-4 font-mono">
-              Last check: {new Date(health.timestamp).toLocaleTimeString()}
-            </p>
-          )}
+      {/* Content */}
+      {error ? (
+        <p className="text-xs text-cyber-danger">{error}</p>
+      ) : health ? (
+        <div className="text-xs">
+          {renderItem('API status', health.status === 'ok' ? 'Healthy' : 'Error')}
+          {renderItem('Edge mode', health.edgeMode)}
+          {renderItem('Inference device', health.inferenceDevice)}
+          {renderItem('Latency', `${health.latency} ms`)}
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="p-3 bg-cyber-danger/10 border border-cyber-danger/30 rounded-lg">
-            <p className="text-xs text-cyber-danger">{error}</p>
-          </div>
-        )}
-
-        {/* System Metrics */}
-        <div className="space-y-2">
-          {systemMetrics.map((metric, index) => (
-            <div key={index} className="flex items-center justify-between py-2 border-b border-cyber-border/50 last:border-0">
-              <span className="text-sm text-cyber-muted">{metric.label}</span>
-              <span className={`text-sm font-mono ${metric.color}`}>
-                {metric.status === 'online' || metric.status === 'ready' || metric.status === 'loaded' ? (
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                    {metric.status.toUpperCase()}
-                  </span>
-                ) : (
-                  metric.status
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* Device Info */}
-        <div className="mt-4 pt-3 border-t border-cyber-border">
-          <p className="text-xs text-cyber-muted mb-2">Device Information</p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-cyber-card p-2 rounded border border-cyber-border">
-              <p className="text-cyber-muted">Platform</p>
-              <p className="text-cyber-text font-mono">Edge Device</p>
-            </div>
-            <div className="bg-cyber-card p-2 rounded border border-cyber-border">
-              <p className="text-cyber-muted">Inference</p>
-              <p className="text-cyber-text font-mono">CPU Only</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      ) : (
+        <p className="text-xs text-cyber-muted">Loading…</p>
+      )}
     </div>
   );
 };
