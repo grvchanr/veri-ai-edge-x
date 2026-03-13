@@ -8,6 +8,7 @@ from backend.explainability import explainability
 import os
 import tempfile
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -36,6 +37,9 @@ async def analyze_video(file: UploadFile = File(...)):
 
         logger.info("Saving upload")
 
+        # Start timer
+        start_time = time.time()
+
         # Run video detector
         result = video_detector.detect(video_path)
 
@@ -60,6 +64,9 @@ async def analyze_video(file: UploadFile = File(...)):
             data=video_path
         )
 
+        # Calculate analysis time
+        analysis_time = round(time.time() - start_time, 2)
+
         # Cleanup temp file
         os.remove(video_path)
 
@@ -70,7 +77,8 @@ async def analyze_video(file: UploadFile = File(...)):
             "decision": decision.to_dict(),
             "reason": reason,
             "frames_analyzed": frames_analyzed,
-            "processing_steps": explanation.get("processing_steps", [])
+            "processing_steps": explanation.get("processing_steps", []),
+            "analysis_time_seconds": analysis_time
         })
 
     except Exception as e:
