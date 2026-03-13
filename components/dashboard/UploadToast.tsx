@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UploadToastProps {
@@ -50,4 +50,4 @@ const UploadToast: React.FC<UploadToastProps> = ({ show, onClose }) => {
   );
 };
 
-export default UploadToast;
+export default memo(UploadToast);

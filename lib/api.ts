@@ -11,9 +11,6 @@
  * --------
  * • Centralised error handling – all functions throw a typed `ApiError`
  *   containing `status`, `message` and the original `error` object.
- * • Loading state – each function returns a promise that resolves to an
- *   object `{ data, loading }`.  The `loading` flag is `true` while the
- *   request is in flight and `false` once it settles.
  * • Timeout protection – the Axios instance is configured with a 15 s
  *   timeout.  Requests that exceed the timeout are aborted and reported
  *   as a `timeout` error.
@@ -29,7 +26,6 @@ import axios, {
   AxiosInstance,
   AxiosError,
   CancelTokenSource,
-  CancelToken,
 } from 'axios';
 
 /* -------------------------------------------------------------------------- */
@@ -64,15 +60,6 @@ export interface HealthResponse {
   latency: number;
 }
 
-/**
- * Generic wrapper returned by each service function.
- * `loading` is true while the request is pending.
- */
-export interface ServiceResult<T> {
-  data: T | null;
-  loading: boolean;
-}
-
 /* -------------------------------------------------------------------------- */
 /* Helper – create a typed ApiError                                           */
 /* -------------------------------------------------------------------------- */
@@ -89,20 +76,17 @@ function createApiError(message: string, err: AxiosError): ApiError {
 export async function uploadVideo(
   file: File,
   cancelSource?: CancelTokenSource
-): Promise<ServiceResult<any>> {
+): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
 
-  let loading = true;
   try {
     const response = await api.post('/analyze/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       cancelToken: cancelSource?.token,
     });
-    loading = false;
-    return { data: response.data, loading };
+    return response.data;
   } catch (err) {
-    loading = false;
     const axiosErr = err as AxiosError;
     if (axios.isCancel(axiosErr)) {
       throw createApiError('Video upload cancelled', axiosErr);
@@ -120,20 +104,17 @@ export async function uploadVideo(
 export async function analyzeText(
   file: File,
   cancelSource?: CancelTokenSource
-): Promise<ServiceResult<any>> {
+): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
 
-  let loading = true;
   try {
     const response = await api.post('/analyze/text', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       cancelToken: cancelSource?.token,
     });
-    loading = false;
-    return { data: response.data, loading };
+    return response.data;
   } catch (err) {
-    loading = false;
     const axiosErr = err as AxiosError;
     if (axios.isCancel(axiosErr)) {
       throw createApiError('Text analysis cancelled', axiosErr);
@@ -150,16 +131,13 @@ export async function analyzeText(
 /* -------------------------------------------------------------------------- */
 export async function checkHealth(
   cancelSource?: CancelTokenSource
-): Promise<ServiceResult<HealthResponse>> {
-  let loading = true;
+): Promise<HealthResponse> {
   try {
     const response = await api.get<HealthResponse>('/health', {
       cancelToken: cancelSource?.token,
     });
-    loading = false;
-    return { data: response.data, loading };
+    return response.data;
   } catch (err) {
-    loading = false;
     const axiosErr = err as AxiosError;
     if (axios.isCancel(axiosErr)) {
       throw createApiError('Health check cancelled', axiosErr);

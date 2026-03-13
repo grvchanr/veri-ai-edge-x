@@ -1,22 +1,12 @@
-import React, { useEffect, useState, memo } from 'react';
-
-interface HealthResponse {
-  /** Overall API health – typically "ok" or "error". */
-  status: string;
-  /** Edge mode flag returned by the backend (e.g., "on" | "off"). */
-  edgeMode: string;
-  /** Device used for inference (e.g., "raspberry-pi", "cpu", "gpu"). */
-  inferenceDevice: string;
-  /** Measured latency in milliseconds. */
-  latency: number;
-}
+import React, { useEffect, useState, useCallback, memo } from 'react';
+import { checkHealth, HealthResponse } from '@/lib/api';
 
 /**
  * SystemStatus
  *
  * - Polls the backend `/health` endpoint every 5 seconds.
  * - Displays API health, edge‑mode flag, inference device, and latency.
- * - Uses a lightweight fetch + `setInterval` approach (no external polling libs).
+ * - Uses the shared `checkHealth` helper (Axios‑based) for consistent error handling.
  * - UI mirrors the style of other dashboard cards (glass, border, Tailwind).
  *
  * The component is deliberately simple to keep CPU usage low on edge devices
@@ -26,11 +16,9 @@ const SystemStatus: React.FC = () => {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchHealth = async () => {
+  const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch('/health');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: HealthResponse = await res.json();
+      const data = await checkHealth();
       setHealth(data);
       setError(null);
     } catch (err) {
@@ -38,14 +26,14 @@ const SystemStatus: React.FC = () => {
       setError('Unable to reach backend');
       setHealth(null);
     }
-  };
+  }, []);
 
   // Initial fetch + polling every 5 seconds
   useEffect(() => {
     fetchHealth();
     const intervalId = setInterval(fetchHealth, 5000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, [fetchHealth]);
 
   // Helper to render a label/value pair
   const renderItem = (label: string, value: React.ReactNode) => (

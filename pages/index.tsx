@@ -1,10 +1,17 @@
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { Header, UploadPanel } from '@/components/dashboard';
 import { AnalysisResult } from '@/lib/api';
 import UploadToast from '@/components/dashboard/UploadToast';
 
 // Lazy‑load heavy components to reduce initial bundle size
+const Header = dynamic(
+  () => import('@/components/dashboard/Header'),
+  { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading header…</p> }
+);
+const UploadPanel = dynamic(
+  () => import('@/components/dashboard/UploadPanel'),
+  { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading upload panel…</p> }
+);
 const ProcessingTimeline = dynamic(
   () => import('@/components/dashboard/ProcessingTimeline'),
   { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading timeline…</p> }

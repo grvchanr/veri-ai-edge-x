@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { motion, Variants } from 'framer-motion';
 
 interface TimelineEvent {
@@ -88,11 +88,14 @@ const getStatusIcon = (status: string) => {
 
 const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
   className = '',
-  events = defaultEvents,
+  events,
 }) => {
+  // Memoize events to avoid unnecessary re‑renders
+  const timelineEvents = useMemo(() => events ?? defaultEvents, [events]);
+
   // Calculate progress percentage (completed steps / total steps)
-  const completedCount = events.filter((e) => e.status === 'complete').length;
-  const progressPercent = Math.round((completedCount / events.length) * 100);
+  const completedCount = timelineEvents.filter((e) => e.status === 'complete').length;
+  const progressPercent = Math.round((completedCount / timelineEvents.length) * 100);
 
   return (
     <motion.div
@@ -124,7 +127,7 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
         animate="visible"
       >
         <div className="space-y-4">
-          {events.map((event, index) => (
+          {timelineEvents.map((event, index) => (
             <motion.div
               key={event.id}
               className="flex items-center gap-3 relative group hover:bg-cyber-accent/10 rounded-md p-1"
@@ -139,7 +142,7 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
               </div>
 
               {/* Connector Line (only between items) */}
-              {index < events.length - 1 && (
+              {index < timelineEvents.length - 1 && (
                 <div
                   className={`
                     absolute left-3 top-10 w-0.5 h-6
