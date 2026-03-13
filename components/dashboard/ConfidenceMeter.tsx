@@ -41,12 +41,15 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   }, [offset, controls]);
 
   return (
-    <div className="flex items-center justify-center">
-      <svg
+    <div className="flex items-center justify-center relative">
+      <motion.svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         className="transform -rotate-90"
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
       >
         {/* Background track */}
         <circle
@@ -72,13 +75,11 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
           strokeDashoffset={circumference}
           animate={controls}
         />
-      </svg>
+      </motion.svg>
 
       {/* Centered percentage text */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-3xl font-bold text-cyber-text">
-          {Math.round(clamped)}%
-        </span>
+        <span className="text-3xl font-bold text-cyber-text">{Math.round(clamped)}%</span>
       </div>
     </div>
   );

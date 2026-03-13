@@ -56,7 +56,13 @@ const SystemStatus: React.FC = () => {
   );
 
   return (
-    <div className="glass rounded-lg border border-cyber-border p-4">
+    <div
+      className={`
+        glass rounded-lg border border-cyber-border p-4
+        transition transform hover:scale-[1.02]
+        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
+      `}
+    >
       {/* Header */}
       <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2 mb-2">
         <svg

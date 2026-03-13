@@ -95,7 +95,14 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
   const progressPercent = Math.round((completedCount / events.length) * 100);
 
   return (
-    <div className={`glass rounded-lg border border-cyber-border ${className}`}>
+    <div
+      className={`
+        glass rounded-lg border border-cyber-border
+        transition transform hover:scale-[1.02]
+        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
+        ${className}
+      `}
+    >
       {/* Header */}
       <div className="p-4 border-b border-cyber-border">
         <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2">
@@ -117,25 +124,34 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
           {events.map((event, index) => (
             <motion.div
               key={event.id}
-              className="flex items-center gap-3 relative"
+              className="flex items-center gap-3 relative group hover:bg-cyber-accent/10 rounded-md p-1"
               variants={itemVariants}
             >
               {/* Status Indicator */}
-              <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${getStatusColor(event.status)}`}>
+              <div className={`
+                flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center
+                ${getStatusColor(event.status)}
+              `}>
                 {getStatusIcon(event.status)}
               </div>
 
               {/* Connector Line (only between items) */}
               {index < events.length - 1 && (
                 <div
-                  className={`absolute left-3 top-10 w-0.5 h-6 ${event.status === 'complete' ? 'bg-cyber-success' : 'bg-cyber-border'}`}
+                  className={`
+                    absolute left-3 top-10 w-0.5 h-6
+                    ${event.status === 'complete' ? 'bg-cyber-success' : 'bg-cyber-border'}
+                  `}
                   style={{ marginTop: '8px' }}
                 />
               )}
 
               {/* Label & optional timestamp */}
               <div className="flex-1">
-                <p className={`text-sm ${event.status === 'pending' ? 'text-cyber-muted' : 'text-cyber-text'}`}>
+                <p className={`
+                  text-sm
+                  ${event.status === 'pending' ? 'text-cyber-muted' : 'text-cyber-text'}
+                `}>
                   {event.label}
                 </p>
                 {event.timestamp && (
@@ -145,15 +161,16 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
 
               {/* Status Badge */}
               <span
-                className={`text-xs font-mono px-2 py-0.5 rounded ${
-                  event.status === 'complete'
+                className={`
+                  text-xs font-mono px-2 py-0.5 rounded
+                  ${event.status === 'complete'
                     ? 'bg-cyber-success/10 text-cyber-success'
                     : event.status === 'active'
                     ? 'bg-cyber-accent/10 text-cyber-accent'
                     : event.status === 'error'
                     ? 'bg-cyber-danger/10 text-cyber-danger'
-                    : 'bg-cyber-border text-cyber-muted'
-                }`}
+                    : 'bg-cyber-border text-cyber-muted'}
+                `}
               >
                 {event.status.toUpperCase()}
               </span>
@@ -168,11 +185,14 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
             <span>{progressPercent}%</span>
           </div>
           <div className="h-1.5 bg-cyber-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-cyber-accent rounded-full transition-all duration-500"
+            <motion.div
+              className="h-full bg-cyber-accent rounded-full"
               style={{ width: `${progressPercent}%` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPercent}%` }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
             />
-          </div>
+          </motion.div>
         </div>
       </motion.div>
     </div>

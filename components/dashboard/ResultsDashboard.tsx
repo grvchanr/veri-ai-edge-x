@@ -68,7 +68,13 @@ const ResultsDashboard: React.FC<{ result: AnalysisResult | null }> = ({ result 
   const verdictStyle = verdictMap[verdict];
 
   return (
-    <div className="glass rounded-lg border border-cyber-border p-6 flex flex-col gap-6">
+    <div
+      className={`
+        glass rounded-lg border border-cyber-border p-6 flex flex-col gap-6
+        transition transform hover:scale-[1.02]
+        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
+      `}
+    >
       {/* Header */}
       <h2 className="text-lg font-semibold text-cyber-text flex items-center gap-2">
         <svg
@@ -97,7 +103,11 @@ const ResultsDashboard: React.FC<{ result: AnalysisResult | null }> = ({ result 
 
         {/* Verdict card */}
         <div
-          className={`flex items-center justify-center rounded-md p-4 ${verdictStyle.bg} border ${verdictStyle.border} ${verdictStyle.text}`}
+          className={`
+            flex items-center justify-center rounded-md p-4
+            ${verdictStyle.bg} border ${verdictStyle.border} ${verdictStyle.text}
+            transition-colors hover:bg-opacity-20
+          `}
         >
           <span className="text-xl font-bold">{verdictStyle.label}</span>
         </div>
