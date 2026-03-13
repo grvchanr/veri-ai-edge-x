@@ -5,14 +5,19 @@ import re
 def extract_frames(video_path):
     cap = cv2.VideoCapture(video_path)
     frames = []
-    frame_count = 0
-    while True:
+    frame_index = 0
+    frame_skip = 10
+
+    while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
-        if frame_count % 10 == 0:
+
+        if frame_index % frame_skip == 0:
             frames.append(frame)
-        frame_count += 1
+
+        frame_index += 1
+
     cap.release()
     return frames
 
