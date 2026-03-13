@@ -9,7 +9,7 @@ from typing import Dict, Any
 from backend.video_detector import VideoDeepfakeDetector
 from backend.text_detector import TextPhishingDetector
 from backend.fusion_engine import FusionEngine
-from backend.preprocess import VideoProcessor, TextProcessor, preprocess_video, preprocess_text
+from backend.preprocess import VideoProcessor, TextProcessor, preprocess_video, preprocess<｜begin▁of▁sentence｜>_text
 from backend.decision_engine import DecisionAgent
 from backend.explainability import explainability
 
@@ -44,7 +44,7 @@ async def analyze_video(file: UploadFile = File(...)):
         # Preprocess video
         frames = video_processor.process(temp_path)
         # Detect
-        video_score = video_detector.predict(frames)
+        video_score = video_detector.detect(temp_path)
         # Fuse
         fusion_result = fusion_engine.weighted_average({'video': video_score})
         # Decision
@@ -55,7 +55,7 @@ async def analyze_video(file: UploadFile = File(...)):
         )
         # Explainability
         explanation = explainability(
-            fusion_result.final_score, 
+            fusion_result.final<｜begin▁of▁sentence｜>_score, 
             data_type='video', 
             data=frames
         )
@@ -64,68 +64,4 @@ async def analyze_video(file: UploadFile = File(...)):
             os.unlink(temp_path)
         except:
             pass
-        return {
-            "confidence": fusion_result.final_score,
-            "decision": decision.to_dict(),
-            "reason": explanation.get('text_explanation', "No explanation available"),
-            "details": {
-                "video_score": video_score,
-                "fusion_method": fusion_result.method,
-                "fusion_confidence": fusion_result.confidence,
-                "explanation": explanation
-            }
-        }
-    except Exception as e:
-        logger.error(f"Video analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/analyze/text")
-async def analyze_text(file: UploadFile = File(...)):
-    try:
-        temp_path = preprocess_text(file)
-        with open(temp_path, 'r', encoding='utf-8') as f:
-            text = f.read()
-        # Tokenize
-        token_ids = text_processor.process(text)
-        # Detect
-        text_score = text_detector.predict(token_ids)
-        # Fuse
-        fusion_result = fusion_engine.weighted_average({'text': text_score})
-        # Decision
-        decision = decision_agent.decide(
-            fusion_result.final_score,
-            {'text': text_score},
-            fusion_result.confidence
-        )
-        # Explainability
-        explanation = explainability(
-            fusion_result.final_score,
-            data_type='text',
-            data=token_ids
-        )
-        # Cleanup
-        try:
-            os.unlink(temp_path)
-        except:
-            pass
-        return {
-            "confidence": fusion_result.final_score,
-            "decision": decision.to_dict(),
-            "reason": explanation.get('text_explanation', "No explanation available"),
-            "details": {
-                "text_score": text_score,
-                "fusion_method": fusion_result.method,
-                "fusion_confidence": fusion_result.confidence,
-                "explanation": explanation
-            }
-        }
-    except Exception as e:
-        logger.error(f"Text analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "ok", 
-        "models_loaded": video_detector.initialized and text_detector.initialized
-    }
+        return 

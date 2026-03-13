@@ -1,45 +1,31 @@
 import cv2
 import numpy as np
+from backend.preprocess import extract_frames
 
-def detect_deepfake_video(video_path):
-    """
-    Detects deepfakes in a video using a lightweight pipeline.
+class VideoDeepfakeDetector:
 
-    Args:
-        video_path (str): Path to the video file.
+    def __init__(self):
+        # initialize any needed models
+        pass
 
-    Returns:
-        dict: A dictionary containing the deepfake score and reason.
-    """
-
-    try:
-        cap = cv2.VideoCapture(video_path)
-        frames = []
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frames.append(frame)
-        cap.release()
+    def detect(self, video_path):
+        # extract frames using preprocess.extract_frames
+        frames = extract_frames(video_path)
 
         if not frames:
             return {"video_score": 0.0, "reason": "No frames extracted"}
 
-        # Placeholder for face detection - replace with a real face detector
+        # Placeholder for face detection 
         # For now, we'll just process all frames
-        face_frames = frames  # In a real implementation, this would be a subset of frames containing faces
+        face_frames = frames  
 
-        # Placeholder deepfake scoring - replace with MesoNet or other model
+        # Placeholder deepfake scoring 
         score = np.mean([frame.mean() for frame in face_frames])
 
-        # Determine reason based on score (adjust threshold as needed)
-        if score > 100:  # Example threshold
+        # Determine reason based on score 
+        if score > 100:  
             reason = "Detected artifact"
         else:
             reason = "No significant artifacts detected"
 
         return {"video_score": float(score), "reason": reason}
-
-    except Exception as e:
-        print(f"Error processing video: {e}")
-        return {"video_score": 0.0, "reason": f"Error processing video: {e}"}
