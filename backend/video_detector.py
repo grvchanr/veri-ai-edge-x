@@ -44,4 +44,4 @@ class VideoDeepfakeDetector:
             score = 0.2   
 
         logger.info(f"Deepfake detection score: {score}")
-        return score
+        return {"video_score": score, "reason": "Artifact analysis complete"}
