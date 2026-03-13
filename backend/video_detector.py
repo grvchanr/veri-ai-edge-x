@@ -1,12 +1,11 @@
 import numpy as np
 import mediapipe as mp
 import cv2
-from mediapipe.python.solutions import face_detection as mp_face_detection
 
 class VideoDeepfakeDetector:
 
-    def  __init__(self):
-        self.mp_face_detection = mp_face_detection
+    def __init__(self):
+        self.mp_face_detection = mp.solutions.face_detection
         self.face_detector = self.mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
 
     def detect_faces(self, frame):
