@@ -1,6 +1,4 @@
-import cv2
 import numpy as np
-from backend.preprocess import extract_frames
 
 class VideoDeepfakeDetector:
 
@@ -9,23 +7,10 @@ class VideoDeepfakeDetector:
         pass
 
     def detect(self, video_path):
-        # extract frames using preprocess.extract_frames
-        frames = extract_frames(video_path)
-
-        if not frames:
-            return {"video_score": 0.0, "reason": "No frames extracted"}
-
-        # Placeholder for face detection 
-        # For now, we'll just process all frames
-        face_frames = frames  
-
-        # Placeholder deepfake scoring 
-        score = np.mean([frame.mean() for frame in face_frames])
-
-        # Determine reason based on score 
-        if score > 100:  
-            reason = "Detected artifact"
+        # Placeholder for video deepfake detection logic
+        # Replace with your actual implementation
+        # This is just a dummy implementation for demonstration
+        if "deepfake" in video_path.lower():
+            return 0.8
         else:
-            reason = "No significant artifacts detected"
-
-        return {"video_score": float(score), "reason": reason}
+            return 0.2

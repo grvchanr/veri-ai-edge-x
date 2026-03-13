@@ -1,85 +1,58 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
-import logging
-import os
-from typing import Dict, Any
-
+from fastapi.responses import JSONResponse
 from backend.video_detector import VideoDeepfakeDetector
-from backend.text_detector import TextPhishingDetector
+from backend.text_detector import detect_phishing, detect_deepfake_text
 from backend.fusion_engine import fusion_engine
-from backend.preprocess import VideoProcessor, TextProcessor, preprocess_video, preprocess_text
-from backend.decision_engine import DecisionAgent
+from backend.decision_engine import decision_engine
 from backend.explainability import explainability
+import os
+import tempfile
 
-logger = logging.getLogger(__name__)
+app = FastAPI()
 
-app = FastAPI(title="VERI-AI EDGE", version="0.1")
-
-# Initialize global components
+# Initialize detectors and other components
 video_detector = VideoDeepfakeDetector()
-text_detector = TextPhishingDetector()
-fusion_engine = fusion_engine()
-decision_agent = DecisionAgent()
-video_processor = VideoProcessor()
-text_processor = TextProcessor()
-
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("VERI-AI EDGE backend starting...")
-
+    # Any startup tasks can go here, like loading models
+    pass
 
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     try:
-        
-        # Save uploaded file
-        temp_path = preprocess_video(file)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+            contents = await file.read()
+            temp_file.write(contents)
+            video_path = temp_file.name
 
-        # Preprocess video
-        frames = video_processor.process(temp_path)
+        video_score = video_detector.detect(video_path)
+        fused_score = fusion_engine(video_score, 0.0)  # Assuming text score is 0 for video-only analysis
+        decision = decision_engine(fused_score)
+        explanation = explainability(fused_score, data_type='video', data=video_path)
 
-        # Detect deepfake
-        result = video_detector.detect(temp_path)
-        video_score = result["video_score"]
+        os.remove(video_path)  # Clean up the temporary file
 
-        # Fuse scores 
-        fusion_result = fusion_engine.weighted_average({"video": video_score})
-
-        # Decision
-        decision = decision_agent.decide(
-            fusion_result.final_score,
-            {"video": video_score},
-            fusion_result.confidence
-        )
-
-        # Explainability
-        explanation = explainability(
-            fusion_result.final_score,
-            data_type="video",
-            data=frames
-        
-        # Cleanup
-        try:
-            os.unlink(temp_path)
-        except Exception:
-            pass
-
-        return 
-        {
-            "confidence": fusion_result.final_score,
-            "decision": decision.to_dict(),
-            "reason": explanation.get("text_explanation", "No explanation available"),
-            "details": 
-            {
-                "video_score": video_score,
-                "explanation": explanation
-            }
-        }
+        return JSONResponse(content={"decision": decision.to_dict(), "explanation": explanation})
 
     except Exception as e:
-        logger.error(f"Video analysis error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
+        return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @app.post("/analyze/text")
-async def analyze_text(file: UploadFile
+async def analyze_text(file: UploadFile = File(...)):
+    try:
+        text = (await file.read()).decode("utf-8")
+        phishing_score = detect_phishing(text)
+        deepfake_score = detect_deepfake_text(text)
+        fused_score = fusion_engine(0.0, deepfake_score)  # Assuming video score is 0 for text-only analysis
+        decision = decision_engine(fused_score)
+        explanation = explainability(fused_score, data_type='text', data=text)
+
+        return JSONResponse(content={"decision": decision.to_dict(), "explanation": explanation})
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+
+@app.get("/health")
+async def health():
+    return JSONResponse(content={"status": "ok"})
