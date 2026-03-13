@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, memo } from 'react';
 
 interface HealthResponse {
   /** Overall API health – typically "ok" or "error". */
@@ -92,4 +92,4 @@ const SystemStatus: React.FC = () => {
   );
 };
 
-export default SystemStatus;
+export default memo(SystemStatus);

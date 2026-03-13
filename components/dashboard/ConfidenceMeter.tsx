@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, memo } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
 interface ConfidenceMeterProps {
@@ -84,4 +84,4 @@ const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   );
 };
 
-export default ConfidenceMeter;
+export default memo(ConfidenceMeter);

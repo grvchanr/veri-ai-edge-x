@@ -1,12 +1,21 @@
-import { useState } from 'react';
-import {
-  Header,
-  UploadPanel,
-  ProcessingTimeline,
-  ResultsDashboard,
-  SystemStatus,
-} from '@/components/dashboard';
+import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { Header, UploadPanel } from '@/components/dashboard';
 import { AnalysisResult } from '@/lib/api';
+
+// Lazy‑load heavy components to reduce initial bundle size
+const ProcessingTimeline = dynamic(
+  () => import('@/components/dashboard/ProcessingTimeline'),
+  { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading timeline…</p> }
+);
+const ResultsDashboard = dynamic(
+  () => import('@/components/dashboard/ResultsDashboard'),
+  { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading results…</p> }
+);
+const SystemStatus = dynamic(
+  () => import('@/components/dashboard/SystemStatus'),
+  { ssr: false, loading: () => <p className="text-sm text-cyber-muted">Loading status…</p> }
+);
 
 export default function Dashboard() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -17,36 +26,17 @@ export default function Dashboard() {
     { id: '4', label: 'Aggregating results', status: 'pending' as const },
   ]);
 
-  const handleAnalysisComplete = (analysisResult: AnalysisResult) => {
+  const handleAnalysisComplete = useCallback((analysisResult: AnalysisResult) => {
     // Simulate sequential progression – each step becomes "complete"
+    const now = new Date().toLocaleTimeString();
     setTimelineEvents([
-      {
-        id: '1',
-        label: 'Extracting frames',
-        status: 'complete',
-        timestamp: new Date().toLocaleTimeString(),
-      },
-      {
-        id: '2',
-        label: 'Detecting faces',
-        status: 'complete',
-        timestamp: new Date().toLocaleTimeString(),
-      },
-      {
-        id: '3',
-        label: 'Artifact analysis',
-        status: 'complete',
-        timestamp: new Date().toLocaleTimeString(),
-      },
-      {
-        id: '4',
-        label: 'Aggregating results',
-        status: 'complete',
-        timestamp: new Date().toLocaleTimeString(),
-      },
+      { id: '1', label: 'Extracting frames', status: 'complete', timestamp: now },
+      { id: '2', label: 'Detecting faces', status: 'complete', timestamp: now },
+      { id: '3', label: 'Artifact analysis', status: 'complete', timestamp: now },
+      { id: '4', label: 'Aggregating results', status: 'complete', timestamp: now },
     ]);
     setResult(analysisResult);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-cyber-black">

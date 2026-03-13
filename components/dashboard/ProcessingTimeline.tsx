@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion, Variants } from 'framer-motion';
 
 interface TimelineEvent {
@@ -179,4 +179,4 @@ const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
   );
 };
 
-export default ProcessingTimeline;
+export default memo(ProcessingTimeline);

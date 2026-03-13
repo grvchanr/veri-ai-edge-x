@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import ConfidenceMeter from '@/components/dashboard/ConfidenceMeter';
 
 /**
@@ -129,4 +129,4 @@ const ResultsDashboard: React.FC<{ result: AnalysisResult | null }> = ({ result 
   );
 };
 
-export default ResultsDashboard;
+export default memo(ResultsDashboard);
