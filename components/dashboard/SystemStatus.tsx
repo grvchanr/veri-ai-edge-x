@@ -1,90 +1,93 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { checkHealth, HealthResponse } from '@/lib/api';
 
-/**
- * SystemStatus
- *
- * - Polls the backend `/health` endpoint every 5 seconds.
- * - Displays API health, edge‑mode flag, inference device, and latency.
- * - Uses the shared `checkHealth` helper (Axios‑based) for consistent error handling.
- * - UI mirrors the style of other dashboard cards (glass, border, Tailwind).
- *
- * The component is deliberately simple to keep CPU usage low on edge devices
- * such as a Raspberry Pi.
- */
 const SystemStatus: React.FC = () => {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastChecked, setLastChecked] = useState<string>('');
 
   const fetchHealth = useCallback(async () => {
     try {
       const data = await checkHealth();
       setHealth(data);
       setError(null);
-    } catch (err) {
-      console.error('Health check failed:', err);
-      setError('Unable to reach backend');
+      setLastChecked(new Date().toLocaleTimeString());
+    } catch {
+      setError('Backend unreachable');
       setHealth(null);
     }
   }, []);
 
-  // Initial fetch + polling every 5 seconds
   useEffect(() => {
     fetchHealth();
-    const intervalId = setInterval(fetchHealth, 5000);
-    return () => clearInterval(intervalId);
+    const id = setInterval(fetchHealth, 10000);
+    return () => clearInterval(id);
   }, [fetchHealth]);
 
-  // Helper to render a label/value pair
-  const renderItem = (label: string, value: React.ReactNode) => (
-    <div className="flex justify-between py-1">
-      <span className="text-sm text-cyber-muted">{label}</span>
-      <span className="text-sm font-medium text-cyber-text">{value}</span>
+  const isOk = health?.status === 'ok';
+
+  const Row: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '7px 0', borderBottom: '1px solid var(--border)',
+    }}>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>{value}</span>
     </div>
   );
 
-  // Border color based on health status
-  const borderClass =
-    health?.status === 'ok' ? 'border-cyber-success' : 'border-cyber-danger';
-
   return (
-    <div
-      className={`
-        glass rounded-lg ${borderClass} border-2 p-4
-        transition transform hover:scale-[1.02]
-        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
-      `}
-    >
+    <div className="card" style={{ padding: 20 }}>
       {/* Header */}
-      <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2 mb-2">
-        <svg
-          className="w-4 h-4 text-cyber-accent"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2z"
-          />
-        </svg>
-        System Status
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div className="section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+          </svg>
+          System Status
+        </div>
+        <span className={isOk ? 'badge badge-green' : error ? 'badge badge-red' : 'badge badge-muted'}
+          style={{ fontSize: 10 }}>
+          {isOk ? '● Online' : error ? '● Offline' : '● Checking…'}
+        </span>
+      </div>
 
       {/* Content */}
       {error ? (
-        <p className="text-xs text-cyber-danger">{error}</p>
+        <div style={{
+          padding: '12px 14px', background: 'var(--red-dim)',
+          border: '1px solid rgba(248,113,113,0.2)', borderRadius: 'var(--radius-sm)',
+        }}>
+          <p style={{ fontSize: 12, color: 'var(--red)' }}>{error}</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            Make sure the Python backend is running on{' '}
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>
+              {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
+            </span>
+          </p>
+        </div>
       ) : health ? (
-        <div className="text-xs">
-          {renderItem('API status', health.status === 'ok' ? 'Healthy' : 'Error')}
-          {renderItem('Edge mode', health.edgeMode)}
-          {renderItem('Inference device', health.inferenceDevice)}
-          {renderItem('Latency', `${health.latency} ms`)}
+        <div>
+          <Row label="API status"        value={<span style={{ color: 'var(--green)' }}>Healthy</span>} />
+          <Row label="Edge mode"         value={health.edgeMode} />
+          <Row label="Inference device"  value={health.inferenceDevice} />
+          <Row label="Latency"           value={`${health.latency} ms`} />
+          {lastChecked && (
+            <p style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>
+              Last checked: {lastChecked}
+            </p>
+          )}
         </div>
       ) : (
-        <p className="text-xs text-cyber-muted">Loading…</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 14, height: 14,
+            border: '1.5px solid var(--border)',
+            borderTop: '1.5px solid var(--accent)',
+            borderRadius: '50%',
+          }} className="animate-spin" />
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Connecting to backend…</p>
+        </div>
       )}
     </div>
   );

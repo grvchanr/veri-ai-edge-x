@@ -1,0 +1,17 @@
+  ▲ Next.js 14.2.29
+  - Environments: .env.local
+
+   Linting and checking validity of types ...
+Failed to compile.
+
+./components/dashboard/UploadPanel.tsx:58:33
+Type error: Cannot find namespace 'axios'.
+
+[0m [90m 56 |[39m   [36mconst[39m fileInputRef [33m=[39m useRef[33m<[39m[33mHTMLInputElement[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+[0m [90m 57 |[39m   [36mconst[39m textFileInputRef [33m=[39m useRef[33m<[39m[33mHTMLInputElement[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m 58 |[39m   [36mconst[39m cancelTokenRef [33m=[39m useRef[33m<[39m[33maxios[39m[33m.[39m[33mCancelTokenSource[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+[0m [90m    |[39m                                 [31m[1m^[22m[39m[0m
+[0m [90m 59 |[39m[0m
+[0m [90m 60 |[39m   useEffect(() [33m=>[39m {[0m
+[0m [90m 61 |[39m     [36mreturn[39m () [33m=>[39m {[0m
+Next.js build worker exited with code: 1 and signal: null

@@ -2,90 +2,56 @@ import React, { useEffect, memo } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 
 interface ConfidenceMeterProps {
-  /** Confidence score as a percentage (0‑100). */
-  confidence: number;
-  /** Diameter of the gauge in pixels. */
+  confidence: number; // 0-100
   size?: number;
-  /** Width of the gauge stroke. */
   strokeWidth?: number;
 }
 
-/**
- * Circular confidence gauge.
- *
- * - SVG‑based radial meter (no external chart libraries).
- * - Uses Framer Motion for a lightweight animated stroke.
- * - Large numeric percentage displayed in the centre.
- * - Designed to stay smooth on low‑power devices (e.g., Raspberry Pi).
- */
 const ConfidenceMeter: React.FC<ConfidenceMeterProps> = ({
   confidence,
   size = 120,
-  strokeWidth = 12,
+  strokeWidth = 10,
 }) => {
-  // Clamp confidence between 0 and 100
   const clamped = Math.min(100, Math.max(0, confidence));
-
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - clamped / 100);
 
-  const strokeControls = useAnimation();
-  const scaleControls = useAnimation();
+  const color =
+    clamped >= 70 ? 'var(--green)' :
+    clamped >= 40 ? 'var(--yellow)' :
+    'var(--red)';
 
-  // Animate the stroke offset whenever confidence changes
+  const strokeCtrl = useAnimation();
   useEffect(() => {
-    strokeControls.start({
-      strokeDashoffset: offset,
-      transition: { duration: 0.6, ease: 'easeOut' },
-    });
-    // Subtle pulse on update
-    scaleControls.start({
-      scale: [1, 1.08, 1],
-      transition: { duration: 0.6, ease: 'easeOut' },
-    });
-  }, [offset, strokeControls, scaleControls]);
+    strokeCtrl.start({ strokeDashoffset: offset, transition: { duration: 0.7, ease: 'easeOut' } });
+  }, [offset, strokeCtrl]);
 
   return (
-    <div className="flex items-center justify-center relative">
-      <motion.svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        className="transform -rotate-90"
-        initial={{ scale: 0.9 }}
-        animate={scaleControls}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-      >
-        {/* Background track */}
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}
+        style={{ transform: 'rotate(-90deg)' }}>
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--color-cyber-border, #2d2d2d)"
-          strokeWidth={strokeWidth}
-          className="opacity-30"
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke="var(--border)" strokeWidth={strokeWidth}
         />
-
-        {/* Animated progress */}
         <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke="var(--color-cyber-accent, #00bcd4)"
+          cx={size / 2} cy={size / 2} r={radius}
+          fill="none" stroke={color}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference}
-          animate={strokeControls}
+          animate={strokeCtrl}
         />
-      </motion.svg>
-
-      {/* Centered percentage text */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-3xl font-bold text-cyber-text">{Math.round(clamped)}%</span>
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
+          {Math.round(clamped)}%
+        </span>
       </div>
     </div>
   );

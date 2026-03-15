@@ -1,0 +1,36 @@
+{
+  "pages\\index.tsx -> @/components/dashboard/Header": {
+    "id": 8918,
+    "files": [
+      "static/chunks/918.13e13bcbe0a5b8c7.js"
+    ]
+  },
+  "pages\\index.tsx -> @/components/dashboard/ProcessingTimeline": {
+    "id": 5509,
+    "files": [
+      "static/chunks/846.06de3341b40b9aba.js",
+      "static/chunks/509.dacdf8cf17a388ae.js"
+    ]
+  },
+  "pages\\index.tsx -> @/components/dashboard/ResultsDashboard": {
+    "id": 5443,
+    "files": [
+      "static/chunks/846.06de3341b40b9aba.js",
+      "static/chunks/443.26d1572e5434c669.js"
+    ]
+  },
+  "pages\\index.tsx -> @/components/dashboard/SystemStatus": {
+    "id": 9884,
+    "files": [
+      "static/chunks/66.cd6ae9b3f5ea8401.js",
+      "static/chunks/884.bc3b23e125436031.js"
+    ]
+  },
+  "pages\\index.tsx -> @/components/dashboard/UploadPanel": {
+    "id": 8021,
+    "files": [
+      "static/chunks/66.cd6ae9b3f5ea8401.js",
+      "static/chunks/21.709c19636754a1f5.js"
+    ]
+  }
+}

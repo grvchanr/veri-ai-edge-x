@@ -1,141 +1,140 @@
 import React, { memo } from 'react';
-import ConfidenceMeter from '@/components/dashboard/ConfidenceMeter';
+import { motion, useAnimation } from 'framer-motion';
+import { useEffect } from 'react';
+import { AnalysisResult } from '@/lib/api';
 
-/**
- * Shape of the analysis result expected by this component.
- * Adjust the fields if your actual `AnalysisResult` type differs.
- */
-export interface AnalysisResult {
-  /** Confidence score as a percentage (0‑100). */
-  confidence: number;
-  /** Verdict string – one of: "authentic", "suspicious", "deepfake". */
-  verdict: 'authentic' | 'suspicious' | 'deepfake';
-  /** Additional metrics for display. */
-  metrics: {
-    framesAnalyzed: number;
-    processingTime: number; // seconds
-    modelUsed: string;
-    inferenceDevice: string;
-  };
+interface Props {
+  result: AnalysisResult | null;
 }
 
-/**
- * ResultsDashboard
- *
- * Shows the AI inference outcome:
- *   • Circular confidence gauge (re‑uses ConfidenceMeter)
- *   • Verdict card with color‑coded status
- *   • Metrics panel with technical details
- *
- * Designed to be lightweight and responsive on low‑power edge devices.
- */
-const ResultsDashboard: React.FC<{ result: AnalysisResult | null }> = ({ result }) => {
+const verdictConfig = {
+  authentic: { color: 'var(--green)',  dim: 'var(--green-dim)',  label: 'Authentic',      emoji: '✓' },
+  suspicious: { color: 'var(--yellow)', dim: 'var(--yellow-dim)', label: 'Suspicious',     emoji: '⚠' },
+  deepfake:  { color: 'var(--red)',    dim: 'var(--red-dim)',    label: 'Likely Deepfake', emoji: '✕' },
+};
+
+/* ── Confidence gauge ─────────────────────────────────────────────────────── */
+const Gauge: React.FC<{ value: number; color: string }> = ({ value, color }) => {
+  const size = 120;
+  const sw = 10;
+  const r = (size - sw) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - (Math.min(100, Math.max(0, value)) / 100));
+  const ctrl = useAnimation();
+
+  useEffect(() => {
+    ctrl.start({ strokeDashoffset: offset, transition: { duration: 0.8, ease: 'easeOut' } });
+  }, [offset, ctrl]);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
+        <motion.circle
+          cx={size/2} cy={size/2} r={r}
+          fill="none" stroke={color} strokeWidth={sw}
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ}
+          animate={ctrl}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <span style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>
+          {Math.round(Math.min(100, Math.max(0, value)))}%
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/* ── Metric row ───────────────────────────────────────────────────────────── */
+const Metric: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
+  <div style={{
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '8px 0', borderBottom: '1px solid var(--border)',
+  }}>
+    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</span>
+    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text)' }}>{value}</span>
+  </div>
+);
+
+/* ── Main component ───────────────────────────────────────────────────────── */
+const ResultsDashboard: React.FC<Props> = ({ result }) => {
   if (!result) {
     return (
-      <div className="glass rounded-lg border border-cyber-border p-6 text-center text-cyber-muted">
-        <p className="text-sm">No analysis result yet. Upload a file to begin.</p>
+      <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◯</div>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          Upload a file to see analysis results
+        </p>
       </div>
     );
   }
 
-  const { confidence, verdict, metrics } = result;
-
-  // Map verdict to colors and border classes
-  const verdictMap: Record<
-    AnalysisResult['verdict'],
-    { bg: string; text: string; border: string; label: string }
-  > = {
-    authentic: {
-      bg: 'bg-cyber-success/10',
-      text: 'text-cyber-success',
-      border: 'border-cyber-success',
-      label: 'Authentic',
-    },
-    suspicious: {
-      bg: 'bg-cyber-warning/10',
-      text: 'text-cyber-warning',
-      border: 'border-cyber-warning',
-      label: 'Suspicious',
-    },
-    deepfake: {
-      bg: 'bg-cyber-danger/10',
-      text: 'text-cyber-danger',
-      border: 'border-cyber-danger',
-      label: 'Likely Deepfake',
-    },
-  };
-
-  const verdictStyle = verdictMap[verdict];
+  const vc = verdictConfig[result.verdict] ?? verdictConfig.suspicious;
+  const m = result.metrics ?? { framesAnalyzed: 0, processingTime: 0, modelUsed: 'N/A', inferenceDevice: 'N/A' };
 
   return (
-    <div
-      className={`
-        glass rounded-lg border border-cyber-border p-6 flex flex-col gap-6
-        transition transform hover:scale-[1.02]
-        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
-      `}
+    <motion.div
+      className="card"
+      style={{ padding: 20 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
     >
-      {/* Header */}
-      <h2 className="text-lg font-semibold text-cyber-text flex items-center gap-2">
-        <svg
-          className="w-5 h-5 text-cyber-accent"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V7a2 2 0 012-2h10a2 2 0 012 2v12a2 2 0 01-2 2z"
-          />
+      {/* Section title */}
+      <div className="section-title" style={{ marginBottom: 20 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         Analysis Results
-      </h2>
+      </div>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Confidence gauge */}
-        <div className="flex flex-col items-center">
-          <ConfidenceMeter confidence={confidence} size={140} strokeWidth={14} />
-          <p className="mt-2 text-sm text-cyber-muted">Confidence Score</p>
+      {/* Gauge + Verdict */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 20 }}>
+        <div>
+          <Gauge value={result.confidence} color={vc.color} />
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', marginTop: 6 }}>
+            Confidence
+          </p>
         </div>
 
-        {/* Verdict card */}
-        <div
-          className={`
-            flex items-center justify-center rounded-md p-4
-            ${verdictStyle.bg} border ${verdictStyle.border} ${verdictStyle.text}
-            transition-colors hover:bg-opacity-20
-          `}
-        >
-          <span className="text-xl font-bold">{verdictStyle.label}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '10px 18px', borderRadius: 'var(--radius-sm)',
+            background: vc.dim, border: `1px solid ${vc.color}30`,
+            marginBottom: 12,
+          }}>
+            <span style={{ fontSize: 18, color: vc.color }}>{vc.emoji}</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: vc.color }}>{vc.label}</span>
+          </div>
+
+          {result.reason && (
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              {result.reason}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Metrics panel */}
-      <div className="border-t border-cyber-border pt-4">
-        <h3 className="text-sm font-medium text-cyber-text mb-2">Metrics</h3>
-        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-cyber-muted">
-          <div className="flex justify-between">
-            <dt>Frames analyzed</dt>
-            <dd className="font-mono">{metrics.framesAnalyzed}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt>Processing time</dt>
-            <dd className="font-mono">{metrics.processingTime}s</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt>Model used</dt>
-            <dd className="font-mono">{metrics.modelUsed}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt>Inference device</dt>
-            <dd className="font-mono">{metrics.inferenceDevice}</dd>
-          </div>
-        </dl>
+      {/* Metrics */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          Metrics
+        </p>
+        <Metric label="Frames analyzed" value={m.framesAnalyzed} />
+        <Metric label="Processing time" value={`${m.processingTime}s`} />
+        <Metric label="Model" value={m.modelUsed} />
+        <Metric label="Device" value={m.inferenceDevice} />
+        {result.phishing_score !== undefined && (
+          <Metric label="Phishing score" value={`${result.phishing_score}%`} />
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from backend.video_detector import VideoDeepfakeDetector
 from backend.text_detector import detect_phishing, detect_deepfake_text
 from backend.fusion_engine import fusion_engine
@@ -13,7 +14,16 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="VERI-AI EDGE", description="Autonomous Multimodal Deepfake Detection API")
+
+# ── CORS ────────────────────────────────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # tighten for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize detectors
 video_detector = VideoDeepfakeDetector()
@@ -24,23 +34,20 @@ async def startup_event():
     logger.info("Application startup complete.")
 
 
+# ── Video analysis ───────────────────────────────────────────────────────────
 @app.post("/analyze/video")
 async def analyze_video(file: UploadFile = File(...)):
     try:
         logger.info("Video received")
 
-        # Save uploaded video to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
             contents = await file.read()
             temp_file.write(contents)
             video_path = temp_file.name
 
         logger.info("Saving upload")
-
-        # Start timer
         start_time = time.time()
 
-        # Run video detector
         result = video_detector.detect(video_path)
 
         video_score = result.get("video_score", 0.0)
@@ -48,37 +55,49 @@ async def analyze_video(file: UploadFile = File(...)):
         frames_analyzed = result.get("frames_analyzed", 0)
 
         logger.info("Running face detection")
-
-        # Fusion (video only in this endpoint)
         fused_score = fusion_engine(video_score, 0.0)
 
         logger.info("Scoring frames")
-
-        # Decision engine
         decision = decision_engine(fused_score)
 
-        # Explainability
         explanation = explainability(
             fused_score,
             data_type="video",
             data=video_path
         )
 
-        # Calculate analysis time
         analysis_time = round(time.time() - start_time, 2)
-
-        # Cleanup temp file
         os.remove(video_path)
 
         logger.info("Returning result")
 
+        # Normalise confidence to 0-100 for the front-end
+        confidence_pct = round(fused_score * 100, 1)
+
+        # Map decision label to verdict expected by front-end
+        label = decision.label  # "suspicious" | "safe" | "unknown"
+        if label == "suspicious":
+            verdict = "deepfake"
+        elif label == "safe":
+            verdict = "authentic"
+        else:
+            verdict = "suspicious"
+
         return JSONResponse(content={
-            "confidence": fused_score,
+            "confidence": confidence_pct,
+            "verdict": verdict,
             "decision": decision.to_dict(),
             "reason": reason,
-            "frames_analyzed": frames_analyzed,
+            "metrics": {
+                "framesAnalyzed": frames_analyzed,
+                "processingTime": analysis_time,
+                "modelUsed": "MediaPipe + Artifact Heuristic",
+                "inferenceDevice": "CPU Edge Inference",
+            },
             "processing_steps": explanation.get("processing_steps", []),
-            "analysis_time_seconds": analysis_time
+            "analysis_time_seconds": analysis_time,
+            "model": "MediaPipe + Artifact Heuristic",
+            "device": "CPU Edge Inference",
         })
 
     except Exception as e:
@@ -86,16 +105,32 @@ async def analyze_video(file: UploadFile = File(...)):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
+# ── Text analysis ────────────────────────────────────────────────────────────
 @app.post("/analyze/text")
-async def analyze_text(file: UploadFile = File(...)):
+async def analyze_text(request: Request, file: UploadFile = File(None)):
+    """
+    Accepts either:
+      • multipart/form-data with a 'file' field (text file upload), OR
+      • application/json with a 'text' field.
+    """
     try:
-        text = (await file.read()).decode("utf-8")
+        content_type = request.headers.get("content-type", "")
+
+        if file is not None:
+            # File upload path
+            text = (await file.read()).decode("utf-8")
+        elif "application/json" in content_type:
+            body = await request.json()
+            text = body.get("text", "")
+        else:
+            # Fallback: try reading raw body as utf-8
+            raw = await request.body()
+            text = raw.decode("utf-8")
 
         phishing_score = detect_phishing(text)
         deepfake_score = detect_deepfake_text(text)
 
         fused_score = fusion_engine(0.0, deepfake_score)
-
         decision = decision_engine(fused_score)
 
         explanation = explainability(
@@ -104,17 +139,42 @@ async def analyze_text(file: UploadFile = File(...)):
             data=text
         )
 
+        confidence_pct = round(fused_score * 100, 1)
+
+        label = decision.label
+        if label == "suspicious":
+            verdict = "deepfake"
+        elif label == "safe":
+            verdict = "authentic"
+        else:
+            verdict = "suspicious"
+
         return JSONResponse(content={
-            "confidence": fused_score,
+            "confidence": confidence_pct,
+            "verdict": verdict,
             "decision": decision.to_dict(),
             "reason": explanation.get("reason", "Text analysis complete"),
-            "processing_steps": explanation.get("processing_steps", [])
+            "metrics": {
+                "framesAnalyzed": 0,
+                "processingTime": 0.0,
+                "modelUsed": "Keyword Heuristic",
+                "inferenceDevice": "CPU Edge Inference",
+            },
+            "processing_steps": explanation.get("processing_steps", []),
+            "phishing_score": round(phishing_score * 100, 1),
+            "device": "CPU Edge Inference",
         })
 
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 
+# ── Health ───────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return JSONResponse(content={"status": "ok"})
+    return JSONResponse(content={
+        "status": "ok",
+        "edgeMode": "enabled",
+        "inferenceDevice": "CPU",
+        "latency": 0,
+    })

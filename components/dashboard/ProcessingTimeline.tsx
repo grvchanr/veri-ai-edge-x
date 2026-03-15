@@ -1,207 +1,156 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { motion, Variants } from 'framer-motion';
+
+type Status = 'pending' | 'active' | 'complete' | 'error';
 
 interface TimelineEvent {
   id: string;
   label: string;
-  status: 'pending' | 'active' | 'complete' | 'error';
+  status: Status;
   timestamp?: string;
 }
 
-interface ProcessingTimelineProps {
-  className?: string;
-  /** 
-   * If omitted the component will render the default AI‑inference steps:
-   * Extracting frames → Detecting faces → Artifact analysis → Aggregating results
-   */
+interface Props {
   events?: TimelineEvent[];
 }
 
-/* -------------------------------------------------------------------------- */
-/* Default AI‑inference steps (the four steps you asked for)                 */
-/* -------------------------------------------------------------------------- */
 const defaultEvents: TimelineEvent[] = [
-  { id: '1', label: 'Extracting frames', status: 'pending' },
-  { id: '2', label: 'Detecting faces', status: 'pending' },
-  { id: '3', label: 'Artifact analysis', status: 'pending' },
-  { id: '4', label: 'Aggregating results', status: 'pending' },
+  { id: '1', label: 'Extracting frames',    status: 'pending' },
+  { id: '2', label: 'Detecting faces',      status: 'pending' },
+  { id: '3', label: 'Artifact analysis',    status: 'pending' },
+  { id: '4', label: 'Aggregating results',  status: 'pending' },
 ];
 
-/* -------------------------------------------------------------------------- */
-/* Framer Motion variants – keep them lightweight for low‑power devices      */
-/* -------------------------------------------------------------------------- */
-const listVariants: Variants = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.25, // each step appears 250 ms after the previous
-    },
-  },
+const statusColor: Record<Status, string> = {
+  complete: 'var(--green)',
+  active:   'var(--accent)',
+  error:    'var(--red)',
+  pending:  'var(--border-light)',
 };
 
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 8 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.2, ease: 'easeOut' },
-  },
-};
+const StatusDot: React.FC<{ status: Status }> = ({ status }) => {
+  const color = statusColor[status];
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'complete':
-      return 'bg-cyber-success text-cyber-success';
-    case 'active':
-      return 'bg-cyber-accent text-cyber-accent animate-pulse';
-    case 'error':
-      return 'bg-cyber-danger text-cyber-danger';
-    default:
-      return 'bg-cyber-border text-cyber-muted';
+  if (status === 'active') {
+    return (
+      <span style={{
+        width: 8, height: 8, borderRadius: '50%',
+        background: color, display: 'block', flexShrink: 0,
+        boxShadow: `0 0 6px ${color}`,
+        animation: 'pulse 1.2s ease infinite',
+      }} />
+    );
   }
-};
-
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'complete':
-      return (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      );
-    case 'active':
-      return (
-        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      );
-    case 'error':
-      return (
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      );
-    default:
-      return <span className="w-3 h-3 rounded-full border border-current"></span>;
+  if (status === 'complete') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    );
   }
+  if (status === 'error') {
+    return (
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    );
+  }
+  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'block', flexShrink: 0 }} />;
 };
 
-const ProcessingTimeline: React.FC<ProcessingTimelineProps> = ({
-  className = '',
-  events,
-}) => {
-  // Memoize events to avoid unnecessary re‑renders
-  const timelineEvents = useMemo(() => events ?? defaultEvents, [events]);
+const listV: Variants = { hidden: {}, visible: { transition: { staggerChildren: 0.15 } } };
+const itemV: Variants = { hidden: { opacity: 0, x: -6 }, visible: { opacity: 1, x: 0, transition: { duration: 0.2 } } };
 
-  // Calculate progress percentage (completed steps / total steps)
-  const completedCount = timelineEvents.filter((e) => e.status === 'complete').length;
-  const progressPercent = Math.round((completedCount / timelineEvents.length) * 100);
+const ProcessingTimeline: React.FC<Props> = ({ events }) => {
+  const items = events ?? defaultEvents;
+  const done = items.filter(e => e.status === 'complete').length;
+  const pct = Math.round((done / items.length) * 100);
 
   return (
-    <motion.div
-      className={`
-        glass rounded-lg border border-cyber-border
-        transition transform hover:scale-[1.02]
-        hover:shadow-[0_0_12px_rgba(0,255,255,0.3)]
-        ${className}
-      `}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-    >
+    <div className="card" style={{ padding: 20 }}>
       {/* Header */}
-      <div className="p-4 border-b border-cyber-border">
-        <h2 className="text-sm font-semibold text-cyber-text flex items-center gap-2">
-          <svg className="w-4 h-4 text-cyber-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Processing Timeline
-        </h2>
+      <div className="section-title" style={{ marginBottom: 16 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Processing Pipeline
       </div>
 
-      {/* Timeline items – animated with Framer Motion */}
-      <motion.div
-        className="p-4"
-        variants={listVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="space-y-4">
-          {timelineEvents.map((event, index) => (
-            <motion.div
-              key={event.id}
-              className="flex items-center gap-3 relative group hover:bg-cyber-accent/10 rounded-md p-1"
-              variants={itemVariants}
-            >
-              {/* Status Indicator */}
-              <div className={`
-                flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center
-                ${getStatusColor(event.status)}
-              `}>
-                {getStatusIcon(event.status)}
-              </div>
-
-              {/* Connector Line (only between items) */}
-              {index < timelineEvents.length - 1 && (
-                <div
-                  className={`
-                    absolute left-3 top-10 w-0.5 h-6
-                    ${event.status === 'complete' ? 'bg-cyber-success' : 'bg-cyber-border'}
-                  `}
-                  style={{ marginTop: '8px' }}
-                />
-              )}
-
-              {/* Label & optional timestamp */}
-              <div className="flex-1">
-                <p className={`
-                  text-sm
-                  ${event.status === 'pending' ? 'text-cyber-muted' : 'text-cyber-text'}
-                `}>
-                  {event.label}
-                </p>
-                {event.timestamp && (
-                  <p className="text-xs text-cyber-muted font-mono">{event.timestamp}</p>
+      {/* Steps */}
+      <motion.div variants={listV} initial="hidden" animate="visible" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {items.map((event, i) => {
+          const color = statusColor[event.status];
+          return (
+            <motion.div key={event.id} variants={itemV} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, position: 'relative' }}>
+              {/* Dot + connector */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10 }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%',
+                  border: `1.5px solid ${color}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: event.status === 'pending' ? 'transparent' : `${color}18`,
+                  flexShrink: 0,
+                }}>
+                  <StatusDot status={event.status} />
+                </div>
+                {i < items.length - 1 && (
+                  <div style={{
+                    width: 1, flexGrow: 1, minHeight: 20,
+                    background: event.status === 'complete' ? 'var(--green)' : 'var(--border)',
+                    margin: '3px 0',
+                    opacity: 0.5,
+                  }} />
                 )}
               </div>
 
-              {/* Status Badge */}
-              <span
-                className={`
-                  text-xs font-mono px-2 py-0.5 rounded
-                  ${event.status === 'complete'
-                    ? 'bg-cyber-success/10 text-cyber-success'
-                    : event.status === 'active'
-                    ? 'bg-cyber-accent/10 text-cyber-accent'
-                    : event.status === 'error'
-                    ? 'bg-cyber-danger/10 text-cyber-danger'
-                    : 'bg-cyber-border text-cyber-muted'}
-                `}
-              >
-                {event.status.toUpperCase()}
-              </span>
-            </motion.div>
-          ))}
-        </div>
+              {/* Label */}
+              <div style={{ paddingTop: 6, paddingBottom: i < items.length - 1 ? 14 : 0, flex: 1 }}>
+                <span style={{
+                  fontSize: 13,
+                  color: event.status === 'pending' ? 'var(--text-muted)' : 'var(--text)',
+                  fontWeight: event.status === 'complete' ? 500 : 400,
+                }}>
+                  {event.label}
+                </span>
+                {event.timestamp && (
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 8, fontFamily: 'var(--font-mono)' }}>
+                    {event.timestamp}
+                  </span>
+                )}
+              </div>
 
-        {/* Progress Bar */}
-        <div className="mt-6">
-          <div className="flex justify-between text-xs text-cyber-muted mb-2">
-            <span>Progress</span>
-            <span>{progressPercent}%</span>
-          </div>
-          <div className="h-1.5 bg-cyber-border rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-cyber-accent rounded-full"
-              style={{ width: `${progressPercent}%` }}
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercent}%` }}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-            />
-          </motion.div>
-        </div>
+              {/* Badge */}
+              <div style={{ paddingTop: 6 }}>
+                <span className={
+                  event.status === 'complete' ? 'badge badge-green' :
+                  event.status === 'active'   ? 'badge badge-accent' :
+                  event.status === 'error'    ? 'badge badge-red' :
+                  'badge badge-muted'
+                } style={{ fontSize: 10 }}>
+                  {event.status}
+                </span>
+              </div>
+            </motion.div>
+          );
+        })}
       </motion.div>
-    </motion.div>
+
+      {/* Progress */}
+      <div style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>
+          <span>Progress</span>
+          <span className="mono">{pct}%</span>
+        </div>
+        <div className="progress-track">
+          <motion.div
+            className="progress-fill"
+            initial={{ width: 0 }}
+            animate={{ width: `${pct}%` }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 
