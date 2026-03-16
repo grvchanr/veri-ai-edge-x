@@ -113,9 +113,9 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
             <span style={{ fontSize: 16, fontWeight: 700, color: vc.color }}>{vc.label}</span>
           </div>
 
-          {'reason' in result && result.reason && (
+          {'reason' in result && (
             <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {result.reason}
+              {(result as any).reason}
             </p>
           )}
         </div>
@@ -126,11 +126,15 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Metrics
         </p>
-        <Metric label="Frames analyzed" value={m.framesAnalyzed} />
-        <Metric label="Processing time" value={`${m.processingTime}s`} />
+        {'framesAnalyzed' in m && (
+          <Metric label="Frames analyzed" value={m.framesAnalyzed} />
+        )}
+        {'processingTime' in m && (
+          <Metric label="Processing time" value={`${m.processingTime}s`} />
+        )}
         <Metric label="Model" value={m.modelUsed} />
         <Metric label="Device" value={m.inferenceDevice} />
-        {result.phishing_score !== undefined && (
+        {'phishing_score' in result && (
           <Metric label="Phishing score" value={`${result.phishing_score}%`} />
         )}
       </div>
