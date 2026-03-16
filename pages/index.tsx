@@ -2,7 +2,7 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { AnalysisResult } from '@/lib/api';
+import { AnalysisResult, FrameAnalysisResult } from '@/lib/api';
 import UploadToast from '@/components/dashboard/UploadToast';
 
 const Header = dynamic(() => import('@/components/dashboard/Header'), { ssr: false });
@@ -27,17 +27,31 @@ const defaultSteps: Step[] = [
   { id: '4', label: 'Aggregating results',  status: 'pending' },
 ];
 
+const liveSteps: Step[] = [
+  { id: '1', label: 'Capturing frame',      status: 'pending' },
+  { id: '2', label: 'Face detection',       status: 'pending' },
+  { id: '3', label: 'EfficientNet inference', status: 'pending' },
+  { id: '4', label: 'Scoring',              status: 'pending' },
+];
+
 const Home: NextPage = () => {
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalysisResult | FrameAnalysisResult | null>(null);
   const [steps, setSteps] = useState<Step[]>(defaultSteps);
   const [showToast, setShowToast] = useState(false);
+  const [isLiveMode, setIsLiveMode] = useState(false);
 
   const handleAnalysisComplete = useCallback(
-    (analysisResult: AnalysisResult, processingSteps: string[]) => {
+    (analysisResult: AnalysisResult | FrameAnalysisResult, processingSteps: string[]) => {
+      const isLive = 'facesDetected' in (analysisResult as FrameAnalysisResult).metrics;
+      setIsLiveMode(isLive);
+      
       const now = new Date().toLocaleTimeString();
-      const labels = processingSteps.length ? processingSteps : defaultSteps.map(s => s.label);
+      const stepLabels = processingSteps.length 
+        ? processingSteps 
+        : (isLive ? liveSteps.map(s => s.label) : defaultSteps.map(s => s.label));
+      
       setSteps(
-        labels.map((label, i) => ({
+        stepLabels.map((label, i) => ({
           id: String(i + 1),
           label,
           status: 'complete' as StepStatus,
@@ -45,7 +59,9 @@ const Home: NextPage = () => {
         }))
       );
       setResult(analysisResult);
-      setShowToast(true);
+      if (!isLive) {
+        setShowToast(true);
+      }
     },
     []
   );
@@ -53,6 +69,7 @@ const Home: NextPage = () => {
   const handleReset = useCallback(() => {
     setResult(null);
     setSteps(defaultSteps);
+    setIsLiveMode(false);
   }, []);
 
   return (

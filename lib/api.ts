@@ -54,6 +54,20 @@ export interface AnalysisResult {
   analysis_time_seconds?: number;
   /** Phishing score (text only, 0-100) */
   phishing_score?: number;
+  /** Detected faces with bounding boxes */
+  faces?: Array<{ bbox: number[]; score: number }>;
+}
+
+export interface FrameAnalysisResult {
+  confidence: number;
+  verdict: 'authentic' | 'suspicious' | 'deepfake';
+  decision: { label: string; confidence: number };
+  faces: Array<{ bbox: number[]; score: number }>;
+  metrics: {
+    facesDetected: number;
+    modelUsed: string;
+    inferenceDevice: string;
+  };
 }
 
 export interface HealthResponse {
@@ -61,6 +75,8 @@ export interface HealthResponse {
   edgeMode: string;      // "enabled" | "disabled"
   inferenceDevice: string;
   latency: number;       // ms
+  model?: string;
+  liveStreamEnabled?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -167,6 +183,28 @@ export async function checkHealth(
     if (axios.isCancel(axiosErr)) throw createApiError('Health check cancelled', axiosErr);
     if (axiosErr.code === 'ECONNABORTED') throw createApiError('Health check timed out', axiosErr);
     throw createApiError('Failed to fetch health status', axiosErr);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* analyzeFrame – POST /analyze/frame (live webcam)                           */
+/* -------------------------------------------------------------------------- */
+export async function analyzeFrame(
+  imageBase64: string
+): Promise<FrameAnalysisResult> {
+  try {
+    const response = await api.post<FrameAnalysisResult>(
+      '/analyze/frame',
+      { image: imageBase64 },
+      {
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+    return response.data;
+  } catch (err) {
+    const axiosErr = err as AxiosError;
+    if (axios.isCancel(axiosErr)) throw createApiError('Frame analysis cancelled', axiosErr);
+    throw createApiError('Failed to analyze frame', axiosErr);
   }
 }
 

@@ -1,0 +1,11 @@
+Task: We are executing the VERI-AI EDGE prototype build.
+
+Read the implementation_plan.md file in the root directory to understand the full scope and constraints of the project.
+
+We are starting with Phase 1, Task 1.
+
+Locate the relevant files for this specific task, write the necessary code, and integrate it. Remember the strict constraints: use only pre-trained weights (no training loops) and adapt the OpenCV backend for a live webcam stream.
+
+Once you finish coding the step, use your terminal access to run a quick syntax check (e.g., python -m py_compile [filename]).
+
+CRITICAL: Stop after completing Task 1. Output a brief summary of what you changed and wait for my command to proceed to Task 2. Do not execute multiple steps at once.

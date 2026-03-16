@@ -71,6 +71,17 @@ const SystemStatus: React.FC = () => {
           <Row label="API status"        value={<span style={{ color: 'var(--green)' }}>Healthy</span>} />
           <Row label="Edge mode"         value={health.edgeMode} />
           <Row label="Inference device"  value={health.inferenceDevice} />
+          <Row label="Model"            value={health.model || 'N/A'} />
+          <Row 
+            label="Live stream" 
+            value={
+              health.liveStreamEnabled ? (
+                <span style={{ color: 'var(--green)' }}>Enabled</span>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>Disabled</span>
+              )
+            } 
+          />
           <Row label="Latency"           value={`${health.latency} ms`} />
           {lastChecked && (
             <p style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8 }}>

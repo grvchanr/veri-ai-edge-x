@@ -1,10 +1,10 @@
 import React, { memo } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import { useEffect } from 'react';
-import { AnalysisResult } from '@/lib/api';
+import { AnalysisResult, FrameAnalysisResult } from '@/lib/api';
 
 interface Props {
-  result: AnalysisResult | null;
+  result: AnalysisResult | FrameAnalysisResult | null;
 }
 
 const verdictConfig = {
@@ -134,6 +134,41 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
           <Metric label="Phishing score" value={`${result.phishing_score}%`} />
         )}
       </div>
+
+      {/* Detected Faces */}
+      {'faces' in result && result.faces && result.faces.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 16 }}>
+          <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Detected Faces
+          </p>
+          {result.faces.map((face, idx) => {
+            const score = face.score;
+            const indicatorColor = score > 0.5 ? 'var(--red)' : score > 0.3 ? 'var(--yellow)' : 'var(--green)';
+            return (
+              <div key={idx} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', marginBottom: 6,
+                background: 'var(--surface)', borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border)',
+              }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: indicatorColor, flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 50 }}>
+                  Face {idx + 1}
+                </span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text)', flex: 1 }}>
+                  bbox: [{face.bbox.map((b: number) => Math.round(b)).join(', ')}]
+                </span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: indicatorColor }}>
+                  {score > 0.5 ? 'Fake' : 'Real'}: {(score * 100).toFixed(0)}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </motion.div>
   );
 };
