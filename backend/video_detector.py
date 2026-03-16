@@ -1,5 +1,6 @@
 import numpy as np
-from mediapipe.python.solutions import face_detection as mp_face_detection
+import mediapipe as mp
+mp_face_detection = mp.solutions.face_detection
 import cv2
 import logging
 import torch

@@ -8,9 +8,9 @@ interface Props {
 }
 
 const verdictConfig = {
-  authentic: { color: 'var(--green)',  dim: 'var(--green-dim)',  label: 'Authentic',      emoji: '✓' },
-  suspicious: { color: 'var(--yellow)', dim: 'var(--yellow-dim)', label: 'Suspicious',     emoji: '⚠' },
-  deepfake:  { color: 'var(--red)',    dim: 'var(--red-dim)',    label: 'Likely Deepfake', emoji: '✕' },
+  authentic: { color: 'var(--green)', dim: 'var(--green-dim)', label: 'Authentic', emoji: '✓' },
+  suspicious: { color: 'var(--yellow)', dim: 'var(--yellow-dim)', label: 'Suspicious', emoji: '⚠' },
+  deepfake: { color: 'var(--red)', dim: 'var(--red-dim)', label: 'Likely Deepfake', emoji: '✕' },
 };
 
 /* ── Confidence gauge ─────────────────────────────────────────────────────── */
@@ -29,9 +29,9 @@ const Gauge: React.FC<{ value: number; color: string }> = ({ value, color }) => 
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--border)" strokeWidth={sw} />
         <motion.circle
-          cx={size/2} cy={size/2} r={r}
+          cx={size / 2} cy={size / 2} r={r}
           fill="none" stroke={color} strokeWidth={sw}
           strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={circ}
           animate={ctrl}
@@ -113,7 +113,7 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
             <span style={{ fontSize: 16, fontWeight: 700, color: vc.color }}>{vc.label}</span>
           </div>
 
-          {result.reason && (
+          {'reason' in result && result.reason && (
             <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
               {result.reason}
             </p>
