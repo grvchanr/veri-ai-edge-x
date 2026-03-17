@@ -14,15 +14,15 @@ class DecisionAgent:
     """Makes final decisions based on fused scores."""
 
     def __init__(self, thresholds: Optional[Dict[str, float]] = None):
-        self.thresholds = thresholds or {"safe": 0.5, "suspicious": 0.7}
+        self.thresholds = thresholds or {"safe": 0.3, "suspicious": 0.7}
 
     def decide(self, fused_score: float) -> Decision:
         if fused_score >= self.thresholds["suspicious"]:
             return Decision("suspicious", fused_score)
-        elif fused_score >= self.thresholds["safe"]:
+        elif fused_score <= self.thresholds["safe"]:
             return Decision("safe", fused_score)
         else:
-            return Decision("unknown", fused_score)
+            return Decision("uncertain", fused_score)
 
     def update_thresholds(self, new_thresholds: Dict[str, float]):
         self.thresholds = new_thresholds

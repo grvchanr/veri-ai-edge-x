@@ -21,6 +21,7 @@ const api: AxiosInstance = axios.create({
   timeout: 60000,
   headers: {
     Accept: 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -45,8 +46,9 @@ export interface AnalysisResult {
   processing_steps: string[];
   /** Structured metrics for the results panel */
   metrics: {
-    framesAnalyzed: number;
-    processingTime: number;
+    framesAnalyzed?: number;
+    processingTime?: number;
+    facesDetected?: number;
     modelUsed: string;
     inferenceDevice: string;
   };
@@ -63,8 +65,11 @@ export interface FrameAnalysisResult {
   verdict: 'authentic' | 'suspicious' | 'deepfake';
   decision: { label: string; confidence: number };
   faces: Array<{ bbox: number[]; score: number }>;
+  reason?: string;
   metrics: {
-    facesDetected: number;
+    framesAnalyzed?: number;
+    processingTime?: number;
+    facesDetected?: number;
     modelUsed: string;
     inferenceDevice: string;
   };

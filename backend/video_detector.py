@@ -3,23 +3,10 @@ import mediapipe as mp
 mp_face_detection = mp.solutions.face_detection
 import cv2
 import logging
-import torch
-import torch.nn as nn
-from torchvision import models, transforms
+import collections
 from backend.frame_classifier import FrameClassifier
 
 logger = logging.getLogger(__name__)
-
-
-class DeepfakeFeatureExtractor(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.model = models.resnet18(pretrained=True)
-        self.model.fc = nn.Identity()
-
-    def forward(self, x):
-        return self.model(x)
-
 
 class VideoDeepfakeDetector:
     def __init__(self):
@@ -28,46 +15,8 @@ class VideoDeepfakeDetector:
             model_selection=0, min_detection_confidence=0.5
         )
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        logger.info(f"Using device: {self.device}")
-
-        self.feature_extractor = DeepfakeFeatureExtractor().to(self.device)
-        self.feature_extractor.eval()
-
-        self.transform = transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        )
-
         self.classifier = FrameClassifier()
-        self.scores_history = []
-
-    def preprocess_face(self, face_img):
-        if face_img is None or face_img.size == 0:
-            return None
-        try:
-            face_tensor = self.transform(face_img)
-            return face_tensor.unsqueeze(0).to(self.device)
-        except Exception as e:
-            logger.warning(f"Face preprocessing failed: {e}")
-            return None
-
-    def extract_features(self, face_tensor):
-        with torch.no_grad():
-            features = self.feature_extractor(face_tensor)
-        return features.cpu().numpy().flatten()
-
-    def compute_anomaly_score(self, features):
-        features_mean = np.mean(features)
-        features_std = np.std(features)
-        anomaly_score = min(1.0, abs(features_mean) / 10.0 + features_std / 5.0)
-        return float(anomaly_score)
+        self.smoothing_window = collections.deque(maxlen=16)
 
     def detect_faces(self, frame):
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -86,8 +35,16 @@ class VideoDeepfakeDetector:
         box_w = int(box.width * w)
         box_h = int(box.height * h)
 
-        x1, y1 = max(0, x - 20), max(0, y - 20)
-        x2, y2 = min(w, x + box_w + 20), min(h, y + box_h + 20)
+        expand_w = int(box_w * 1.35)
+        expand_h = int(box_h * 1.35)
+        
+        dx = (expand_w - box_w) // 2
+        dy = (expand_h - box_h) // 2
+
+        x1 = max(0, x - dx)
+        y1 = max(0, y - dy)
+        x2 = min(w, x + box_w + dx)
+        y2 = min(h, y + box_h + dy)
 
         face = frame[y1:y2, x1:x2]
 
@@ -105,8 +62,8 @@ class VideoDeepfakeDetector:
             face_img = self.get_face_region(frame, detection)
             if face_img is not None:
                 score = self.classifier.classify(face_img)
-                x, y, w, h = self._get_box_coords(frame, detection)
-                faces.append({"bbox": [x, y, w, h], "score": float(score)})
+                coords = self._get_box_coords(frame, detection)
+                faces.append({"bbox": list(coords), "score": float(score)})
 
         avg_score = np.mean([f["score"] for f in faces]) if faces else 0.5
 
@@ -132,13 +89,14 @@ class VideoDeepfakeDetector:
 
         cap.release()
 
-        logger.info("Step 2/4: Detecting faces")
+        logger.info("Step 2/4: Detecting faces and classifying sampled frames")
 
         all_scores = []
         all_faces = []
 
         if frames:
-            num_samples = min(10, len(frames))
+            # Aggregate over 40 frames as requested
+            num_samples = min(40, len(frames))
             indices = np.linspace(0, len(frames) - 1, num_samples, dtype=int)
             sampled_frames = [frames[i] for i in indices]
 
@@ -147,21 +105,29 @@ class VideoDeepfakeDetector:
                 all_scores.append(result["score"])
                 all_faces.extend(result["faces"])
 
-        logger.info("Step 3/4: Running EfficientNet inference")
-
         if all_scores:
-            score = np.mean(all_scores)
+            mean_score = float(np.mean(all_scores))
+            median_score = float(np.median(all_scores))
+            std_score = float(np.std(all_scores))
+            final_score = 0.6 * median_score + 0.4 * mean_score
         else:
-            score = 0.2
+            mean_score = 0.5
+            median_score = 0.5
+            std_score = 0.0
+            final_score = 0.5
 
         frames_analyzed = len(frames)
 
-        logger.info(f"Deepfake detection score: {score}")
+        logger.info(f"Aggregate Deepfake Scores - Mean: {mean_score:.4f}, Median: {median_score:.4f}, Weighted: {final_score:.4f}")
         logger.info("Step 4/4: Aggregating results")
 
         return {
-            "video_score": float(score),
-            "reason": "Facial artifact analysis with EfficientNet-B0 + MediaPipe",
+            "video_score": final_score,
+            "mean_fake_probability": mean_score,
+            "median_fake_probability": median_score,
+            "std_fake_probability": std_score,
+            "frame_scores": all_scores,
+            "reason": "Temporal facial artifact analysis with EfficientNet-B7 + MediaPipe",
             "frames_analyzed": frames_analyzed,
             "faces": all_faces,
         }
@@ -183,42 +149,42 @@ class VideoDeepfakeDetector:
                 logger.warning("Failed to grab frame")
                 break
 
-            detections = self.detect_faces(frame)
+            result = self.classify_frame(frame)
+            score = result["score"]
+            faces = result["faces"]
 
-            score = 0.0
-            face_detected = False
-
-            if detections:
-                face_detected = True
-                face_img = self.get_face_region(frame, detections[0])
-
-                if face_img is not None:
-                    face_tensor = self.preprocess_face(face_img)
-                    if face_tensor is not None:
-                        features = self.extract_features(face_tensor)
-                        score = self.compute_anomaly_score(features)
-
-                        x, y, w, h = self._get_box_coords(frame, detections[0])
-                        color = (0, 0, 255) if score > 0.5 else (0, 255, 0)
-                        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                        label = (
-                            f"Deepfake: {score:.2f}"
-                            if score > 0.5
-                            else f"Authentic: {1 - score:.2f}"
-                        )
-                        cv2.putText(
-                            frame,
-                            label,
-                            (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            color,
-                            2,
-                        )
-
-            self.scores_history.append(score)
+            # Temporal smoothing
+            if faces:
+                self.smoothing_window.append(score)
+            
+            # Using weighted median/mean for live decision
+            if self.smoothing_window:
+                m_score = float(np.median(self.smoothing_window))
+                mn_score = float(np.mean(self.smoothing_window))
+                smoothed_score = 0.6 * m_score + 0.4 * mn_score
+            else:
+                smoothed_score = 0.5
 
             if display:
+                for face in faces:
+                    x, y, w, h = face["bbox"]
+                    color = (0, 0, 255) if smoothed_score > 0.5 else (0, 255, 0)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                    label = (
+                        f"Deepfake: {smoothed_score:.2f}"
+                        if smoothed_score > 0.5
+                        else f"Authentic: {1 - smoothed_score:.2f}"
+                    )
+                    cv2.putText(
+                        frame,
+                        label,
+                        (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        color,
+                        2,
+                    )
+
                 cv2.imshow("VERI-AI EDGE - Live Deepfake Detection", frame)
 
                 if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -227,13 +193,27 @@ class VideoDeepfakeDetector:
         cap.release()
         cv2.destroyAllWindows()
 
-        avg_score = np.mean(self.scores_history) if self.scores_history else 0.0
-        logger.info(f"Live detection complete. Average score: {avg_score}")
+        if self.smoothing_window:
+            mean_score = float(np.mean(self.smoothing_window))
+            median_score = float(np.median(self.smoothing_window))
+            std_score = float(np.std(self.smoothing_window))
+            final_score = 0.6 * median_score + 0.4 * mean_score
+        else:
+            mean_score = 0.5
+            median_score = 0.5
+            std_score = 0.0
+            final_score = 0.5
+
+        logger.info(f"Live detection complete. Final weighted score: {final_score:.4f}")
 
         return {
-            "webcam_score": float(avg_score),
-            "reason": "Live webcam analysis with pre-trained ResNet18",
-            "frames_processed": len(self.scores_history),
+            "webcam_score": final_score,
+            "mean_fake_probability": mean_score,
+            "median_fake_probability": median_score,
+            "std_fake_probability": std_score,
+            "frame_scores": list(self.smoothing_window),
+            "reason": "Live webcam analysis with EfficientNet-B7",
+            "frames_processed": len(self.smoothing_window),
         }
 
     def _get_box_coords(self, frame, detection):
@@ -243,4 +223,16 @@ class VideoDeepfakeDetector:
         y = int(box.ymin * h)
         box_w = int(box.width * w)
         box_h = int(box.height * h)
-        return x, y, box_w, box_h
+        
+        expand_w = int(box_w * 1.35)
+        expand_h = int(box_h * 1.35)
+        
+        dx = (expand_w - box_w) // 2
+        dy = (expand_h - box_h) // 2
+
+        x1 = max(0, x - dx)
+        y1 = max(0, y - dy)
+        x2 = min(w, x + box_w + dx)
+        y2 = min(h, y + box_h + dy)
+
+        return x1, y1, x2 - x1, y2 - y1

@@ -7,10 +7,13 @@ interface Props {
   result: AnalysisResult | FrameAnalysisResult | null;
 }
 
-const verdictConfig = {
+const verdictConfig: Record<string, any> = {
   authentic: { color: 'var(--green)', dim: 'var(--green-dim)', label: 'Authentic', emoji: '✓' },
   suspicious: { color: 'var(--yellow)', dim: 'var(--yellow-dim)', label: 'Suspicious', emoji: '⚠' },
   deepfake: { color: 'var(--red)', dim: 'var(--red-dim)', label: 'Likely Deepfake', emoji: '✕' },
+  REAL: { color: 'var(--green)', dim: 'var(--green-dim)', label: 'REAL', emoji: '✓' },
+  UNCERTAIN: { color: 'var(--yellow)', dim: 'var(--yellow-dim)', label: 'UNCERTAIN', emoji: '⚠' },
+  FAKE: { color: 'var(--red)', dim: 'var(--red-dim)', label: 'FAKE', emoji: '✕' },
 };
 
 /* ── Confidence gauge ─────────────────────────────────────────────────────── */
@@ -74,8 +77,9 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
     );
   }
 
-  const vc = verdictConfig[result.verdict] ?? verdictConfig.suspicious;
-  const m = result.metrics ?? { framesAnalyzed: 0, processingTime: 0, modelUsed: 'N/A', inferenceDevice: 'N/A' };
+  const apiLabel = 'label' in result.decision ? result.decision.label : result.verdict;
+  const vc = verdictConfig[apiLabel] ?? verdictConfig.suspicious;
+  const m = result.metrics || { modelUsed: 'N/A', inferenceDevice: 'N/A' };
 
   return (
     <motion.div
@@ -115,7 +119,7 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
 
           {'reason' in result && (
             <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              {(result as any).reason}
+              {result.reason}
             </p>
           )}
         </div>
@@ -126,15 +130,18 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Metrics
         </p>
-        {'framesAnalyzed' in m && (
+        {m.framesAnalyzed !== undefined && (
           <Metric label="Frames analyzed" value={m.framesAnalyzed} />
         )}
-        {'processingTime' in m && (
+        {m.facesDetected !== undefined && (
+          <Metric label="Faces detected" value={m.facesDetected} />
+        )}
+        {m.processingTime !== undefined && (
           <Metric label="Processing time" value={`${m.processingTime}s`} />
         )}
         <Metric label="Model" value={m.modelUsed} />
         <Metric label="Device" value={m.inferenceDevice} />
-        {'phishing_score' in result && (
+        {'phishing_score' in result && result.phishing_score !== undefined && (
           <Metric label="Phishing score" value={`${result.phishing_score}%`} />
         )}
       </div>
@@ -166,7 +173,7 @@ const ResultsDashboard: React.FC<Props> = ({ result }) => {
                   bbox: [{face.bbox.map((b: number) => Math.round(b)).join(', ')}]
                 </span>
                 <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: indicatorColor }}>
-                  {score > 0.5 ? 'Fake' : 'Real'}: {(score * 100).toFixed(0)}%
+                  {score > 0.5 ? 'Fake' : 'Real'}: {((score > 0.5 ? score : 1 - score) * 100).toFixed(0)}%
                 </span>
               </div>
             );

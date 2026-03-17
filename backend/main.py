@@ -24,7 +24,7 @@ app = FastAPI(
 # ── CORS ────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -73,33 +73,49 @@ async def analyze_video(file: UploadFile = File(...)):
 
         logger.info("Returning result")
 
-        confidence_pct = round(fused_score * 100, 1)
-
-        label = decision.label
-        if label == "suspicious":
-            verdict = "deepfake"
-        elif label == "safe":
-            verdict = "authentic"
+        fake_prob = float(fused_score)
+        real_prob = 1.0 - fake_prob
+        
+        mean_prob = result.get("mean_fake_probability", fake_prob)
+        std_prob = result.get("std_fake_probability", 0.0)
+        frame_scores = result.get("frame_scores", [fake_prob])
+        
+        if fake_prob > 0.7:
+            api_label = "FAKE"
+            conf_val = fake_prob * 100
+        elif fake_prob < 0.3:
+            api_label = "REAL"
+            conf_val = real_prob * 100
         else:
-            verdict = "suspicious"
+            api_label = "UNCERTAIN"
+            conf_val = max(fake_prob, real_prob) * 100
+            
+        confidence_pct = round(conf_val, 1)
 
         return JSONResponse(
             content={
+                "label": api_label,
                 "confidence": confidence_pct,
-                "verdict": verdict,
+                "fake_probability": round(fake_prob, 4),
+                "real_probability": round(real_prob, 4),
+                "mean_fake_probability": round(mean_prob, 4),
+                "median_fake_probability": round(fake_prob, 4),
+                "std_fake_probability": round(std_prob, 4),
+                "frame_scores": [round(s, 4) for s in frame_scores],
+                "verdict": "deepfake" if api_label == "FAKE" else "authentic" if api_label == "REAL" else "suspicious",
                 "decision": decision.to_dict(),
                 "reason": reason,
                 "faces": faces,
                 "metrics": {
                     "framesAnalyzed": frames_analyzed,
                     "processingTime": analysis_time,
-                    "modelUsed": "EfficientNet-B0 + MediaPipe",
-                    "inferenceDevice": "CPU Edge Inference",
+                    "modelUsed": "EfficientNet-B7 + MediaPipe (Temporal Aggregation)",
+                    "inferenceDevice": "CPU/MPS/CUDA Edge Inference",
                 },
                 "processing_steps": explanation.get("processing_steps", []),
                 "analysis_time_seconds": analysis_time,
-                "model": "EfficientNet-B0 + MediaPipe",
-                "device": "CPU Edge Inference",
+                "model": "EfficientNet-B7 + MediaPipe",
+                "device": "CPU/MPS/CUDA Edge Inference",
             }
         )
 
@@ -135,26 +151,39 @@ async def analyze_frame(request: Request):
         fused_score = fusion_engine(video_score, 0.0)
         decision = decision_engine(fused_score)
 
-        confidence_pct = round(fused_score * 100, 1)
-
-        label = decision.label
-        if label == "suspicious":
-            verdict = "deepfake"
-        elif label == "safe":
-            verdict = "authentic"
+        fake_prob = float(fused_score)
+        real_prob = 1.0 - fake_prob
+        
+        # For single frame analysis, median/mean/std are simpler but available
+        if fake_prob > 0.7:
+            api_label = "FAKE"
+            conf_val = fake_prob * 100
+        elif fake_prob < 0.3:
+            api_label = "REAL"
+            conf_val = real_prob * 100
         else:
-            verdict = "suspicious"
+            api_label = "UNCERTAIN"
+            conf_val = max(fake_prob, real_prob) * 100
+            
+        confidence_pct = round(conf_val, 1)
 
         return JSONResponse(
             content={
+                "label": api_label,
                 "confidence": confidence_pct,
-                "verdict": verdict,
+                "fake_probability": round(fake_prob, 4),
+                "real_probability": round(real_prob, 4),
+                "mean_fake_probability": round(fake_prob, 4),
+                "median_fake_probability": round(fake_prob, 4),
+                "std_fake_probability": 0.0,
+                "frame_scores": [round(fake_prob, 4)],
+                "verdict": "deepfake" if api_label == "FAKE" else "authentic" if api_label == "REAL" else "suspicious",
                 "decision": decision.to_dict(),
                 "faces": faces,
                 "metrics": {
                     "facesDetected": len(faces),
-                    "modelUsed": "EfficientNet-B0 + MediaPipe",
-                    "inferenceDevice": "CPU Edge Inference",
+                    "modelUsed": "EfficientNet-B7 + MediaPipe",
+                    "inferenceDevice": "CPU/MPS/CUDA Edge Inference",
                 },
             }
         )
@@ -194,20 +223,28 @@ async def analyze_text(request: Request, file: UploadFile = File(None)):
 
         explanation = explainability(fused_score, data_type="text", data=text)
 
-        confidence_pct = round(fused_score * 100, 1)
-
-        label = decision.label
-        if label == "suspicious":
-            verdict = "deepfake"
-        elif label == "safe":
-            verdict = "authentic"
+        fake_prob = float(fused_score)
+        real_prob = 1.0 - fake_prob
+        
+        if fake_prob > 0.7:
+            api_label = "FAKE"
+            conf_val = fake_prob * 100
+        elif fake_prob < 0.3:
+            api_label = "REAL"
+            conf_val = real_prob * 100
         else:
-            verdict = "suspicious"
+            api_label = "UNCERTAIN"
+            conf_val = max(fake_prob, real_prob) * 100
+            
+        confidence_pct = round(conf_val, 1)
 
         return JSONResponse(
             content={
+                "label": api_label,
                 "confidence": confidence_pct,
-                "verdict": verdict,
+                "fake_probability": round(fake_prob, 4),
+                "real_probability": round(real_prob, 4),
+                "verdict": "deepfake" if api_label == "FAKE" else "authentic" if api_label == "REAL" else "suspicious",
                 "decision": decision.to_dict(),
                 "reason": explanation.get("reason", "Text analysis complete"),
                 "metrics": {
@@ -233,9 +270,9 @@ async def health():
         content={
             "status": "ok",
             "edgeMode": "enabled",
-            "inferenceDevice": "CPU",
+            "inferenceDevice": "CPU/MPS/CUDA",
             "latency": 0,
-            "model": "EfficientNet-B0",
+            "model": "EfficientNet-B7",
             "liveStreamEnabled": True,
         }
     )
